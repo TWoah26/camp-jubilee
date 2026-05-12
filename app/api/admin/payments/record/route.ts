@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -44,7 +44,8 @@ export async function PATCH(req: Request) {
     const { data: profile } = await supabase.from("users").select("role").eq("id", user.id).single();
     if (!profile || !["director","administrator"].includes(profile.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     if (!id || !amount || amount <= 0) return NextResponse.json({ error: "Invalid data" }, { status: 400 });
-    const { error } = await supabase.from("tuition_payments").update({ amount, payment_method, notes }).eq("id", id);
+    const admin = await createAdminClient();
+    const { error } = await admin.from("tuition_payments").update({ amount, payment_method, notes }).eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   } catch {
@@ -61,7 +62,8 @@ export async function DELETE(req: Request) {
     const { data: profile } = await supabase.from("users").select("role").eq("id", user.id).single();
     if (!profile || !["director","administrator"].includes(profile.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
-    const { error } = await supabase.from("tuition_payments").delete().eq("id", id);
+    const admin = await createAdminClient();
+    const { error } = await admin.from("tuition_payments").delete().eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   } catch {
