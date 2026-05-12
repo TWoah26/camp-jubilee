@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import AppShell from "@/components/AppShell";
 import { formatDateTime } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils";
-import PaymentButtons from "@/components/PaymentButtons";
+import TuitionMultiForm from "@/components/TuitionMultiForm";
 import AddFundsMultiForm from "@/components/AddFundsMultiForm";
 
 export default async function PaymentsPage() {
@@ -86,31 +86,19 @@ export default async function PaymentsPage() {
                       <span className="text-xs bg-jubilee-green/10 text-jubilee-green font-medium px-2 py-0.5 rounded-full">In Session</span>
                     )}
                   </div>
-                  <div className="space-y-4">
-                    {sessionCampers.map((camper: any) => {
-                      const amountPaid = paidByCamperSession[`${camper.id}__${session.id}`] ?? 0;
-                      return (
-                        <div key={camper.id}>
-                          {sessionCampers.length > 1 && (
-                            <p className="text-sm font-medium text-jubilee-navy mb-2">
-                              {camper.first_name} {camper.last_name}
-                            </p>
-                          )}
-                          <PaymentButtons
-                            campers={[camper]}
-                            sessionId={session.id}
-                            parentId={user.id}
-                            depositAmount={session.deposit_amount}
-                            tuitionAmount={camper.tuition_commitment > 0 ? camper.tuition_commitment : session.tuition_amount}
-                            amountPaid={amountPaid}
-                          />
-                          {sessionCampers.indexOf(camper) < sessionCampers.length - 1 && (
-                            <div className="border-t border-gray-100 mt-4" />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <TuitionMultiForm
+                    sessionId={session.id}
+                    parentId={user.id}
+                    campers={sessionCampers.map((camper: any) => ({
+                      id: camper.id,
+                      first_name: camper.first_name,
+                      last_name: camper.last_name,
+                      session_id: session.id,
+                      tuition_commitment: camper.tuition_commitment ?? 0,
+                      amountPaid: paidByCamperSession[`${camper.id}__${session.id}`] ?? 0,
+                      sessionTuitionAmount: session.tuition_amount ?? 0,
+                    }))}
+                  />
                 </div>
               );
             })}

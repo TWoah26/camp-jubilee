@@ -40,6 +40,29 @@ export async function GET(req: Request) {
         ]);
       }));
 
+    } else if (type === "tuition_multi") {
+      const allocationsParam = searchParams.get("allocations") ?? "";
+      const allocations = allocationsParam.split(",").map(part => {
+        const [camper_id, amountStr, session_id] = part.split(":");
+        return { camper_id, amount: parseFloat(amountStr), session_id: session_id || null };
+      }).filter(a => a.camper_id && a.amount > 0);
+
+      if (!allocations.length) {
+        return NextResponse.redirect(new URL("/payments?error=invalid_callback", BASE_URL));
+      }
+
+      await Promise.all(allocations.map(({ camper_id, amount, session_id }) =>
+        supabase.from("tuition_payments").insert({
+          camper_id,
+          parent_id: parentId,
+          amount,
+          type: "tuition",
+          payment_method: "square",
+          square_payment_id: orderId ?? null,
+          session_id,
+        })
+      ));
+
     } else if (type === "store_credit") {
       const camperId = searchParams.get("camper_id");
       const amount = parseFloat(searchParams.get("amount") ?? "0");

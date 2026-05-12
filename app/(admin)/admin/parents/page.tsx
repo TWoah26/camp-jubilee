@@ -14,35 +14,40 @@ export default async function AdminParentsPage() {
   if (!profile || !["director","administrator"].includes(profile.role)) redirect("/dashboard");
 
   const selectedSessionId = await getAdminSessionId();
+  const { data: sessions } = await supabase.from("sessions").select("id, name").order("start_date", { ascending: true });
 
-  // If a session is selected, limit to campers in that session
-  let camperIdFilter: string[] | null = null;
-  if (selectedSessionId) {
-    const { data: sessionCampers } = await supabase.from("campers").select("id").eq("session_id", selectedSessionId);
-    camperIdFilter = (sessionCampers ?? []).map((c: any) => c.id);
-  }
+  // All campers (filtered by session if selected)
+  let camperQuery = supabase
+    .from("campers")
+    .select("id, first_name, last_name, parent_email, parent_name, session_id")
+    .eq("is_staff", false)
+    .order("last_name");
+  if (selectedSessionId) camperQuery = camperQuery.eq("session_id", selectedSessionId) as any;
+  const { data: campers } = await camperQuery;
 
-  const linksQuery = supabase
+  // All approved links for those campers
+  const camperIds = (campers ?? []).map((c: any) => c.id);
+  const { data: links } = await supabase
     .from("parent_camper_links")
     .select("*, parent:users(id, name, email), camper:campers(id, first_name, last_name)")
+    .in("camper_id", camperIds.length > 0 ? camperIds : ["none"])
     .order("linked_at", { ascending: false });
 
-  const { data: links } = await (camperIdFilter ? linksQuery.in("camper_id", camperIdFilter) : linksQuery);
-
-  const camperQuery = supabase.from("campers").select("id, first_name, last_name").order("last_name");
-  const { data: campers } = await (selectedSessionId ? camperQuery.eq("session_id", selectedSessionId) : camperQuery);
-
+  // All parent users (for manual link dropdown)
   const { data: parents } = await supabase.from("users").select("id, name, email").eq("role", "parent").order("name");
-
-  const { data: sessions } = await supabase.from("sessions").select("id, name").order("start_date", { ascending: true });
 
   return (
     <AppShell role={profile.role} userName={profile.name}>
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-jubilee-green-dark">
-          Parent Accounts{selectedSessionId && sessions ? ` — ${sessions.find(s => s.id === selectedSessionId)?.name ?? ""}` : ""}
+          Parent Directory{selectedSessionId && sessions ? ` — ${sessions.find((s: any) => s.id === selectedSessionId)?.name ?? ""}` : ""}
         </h1>
-        <ParentList links={links ?? []} campers={campers ?? []} parents={parents ?? []} />
+        <ParentList
+          campers={campers ?? []}
+          links={links ?? []}
+          parents={parents ?? []}
+          selectedSessionId={selectedSessionId ?? null}
+        />
       </div>
     </AppShell>
   );
