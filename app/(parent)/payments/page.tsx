@@ -27,10 +27,13 @@ export default async function PaymentsPage() {
     .eq("session_closed", false)
     .order("start_date", { ascending: true });
 
+  // Get all camper IDs this parent is linked to
+  const camperIds = (links ?? []).map((l: any) => l.camper.id);
+
   const { data: tuitionPayments } = await supabase
     .from("tuition_payments")
     .select("*")
-    .eq("parent_id", user.id)
+    .in("camper_id", camperIds.length > 0 ? camperIds : ["none"])
     .order("paid_at", { ascending: false });
 
   // Track payments per camper+session independently
