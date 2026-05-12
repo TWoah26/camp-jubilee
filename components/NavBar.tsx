@@ -35,6 +35,7 @@ const adminLinks = [
   { href: "/admin/finances", label: "Finances", icon: "💰" },
   { href: "/admin/session", label: "Session", icon: "⚙️" },
   { href: "/admin/info", label: "Info Pages", icon: "📝" },
+  { href: "/admin/users", label: "Users", icon: "👥" },
 ];
 
 const nurseLinks = [
