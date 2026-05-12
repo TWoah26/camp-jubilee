@@ -48,6 +48,7 @@ export default function UserManager({ users: initialUsers, currentUserId }: User
   const [users, setUsers] = useState<UserRow[]>(initialUsers);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [errorId, setErrorId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   const filtered = users.filter((u) => {
@@ -81,6 +82,24 @@ export default function UserManager({ users: initialUsers, currentUserId }: User
       setErrorId(userId);
     } finally {
       setSavingId(null);
+    }
+  }
+
+  async function handleDelete(userId: string, userName: string) {
+    if (!confirm(`Delete ${userName}'s account? This cannot be undone.`)) return;
+    setDeletingId(userId);
+    try {
+      const res = await fetch("/api/admin/users/role", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      if (!res.ok) throw new Error("Failed to delete user");
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+    } catch {
+      alert("Failed to delete user. Please try again.");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -163,6 +182,15 @@ export default function UserManager({ users: initialUsers, currentUserId }: User
                   <td className="px-5 py-3.5 text-xs">
                     {isSaving && <span className="text-jubilee-gold animate-pulse">Saving…</span>}
                     {hasError && <span className="text-jubilee-coral font-medium">Save failed</span>}
+                    {!isMe && !isSaving && (
+                      <button
+                        onClick={() => handleDelete(u.id, u.name || u.email)}
+                        disabled={deletingId === u.id}
+                        className="text-red-400 hover:text-red-600 font-medium disabled:opacity-50"
+                      >
+                        {deletingId === u.id ? "Deleting…" : "Delete"}
+                      </button>
+                    )}
                   </td>
                 </tr>
               );
@@ -229,6 +257,15 @@ export default function UserManager({ users: initialUsers, currentUserId }: User
                 {isSaving && <span className="text-xs text-jubilee-gold animate-pulse">Saving…</span>}
                 {hasError && <span className="text-xs text-jubilee-coral font-medium">Save failed</span>}
               </div>
+              {!isMe && (
+                <button
+                  onClick={() => handleDelete(u.id, u.name || u.email)}
+                  disabled={deletingId === u.id}
+                  className="text-xs text-red-400 hover:text-red-600 font-medium disabled:opacity-50"
+                >
+                  {deletingId === u.id ? "Deleting…" : "Delete user"}
+                </button>
+              )}
             </div>
           );
         })}
