@@ -48,11 +48,13 @@ export async function POST(req: Request) {
             if (remaining <= 0) break;
 
             // Look up the Square payment ID for this order
-            const paymentsResult = await squareClient.payments.list({ orderId: tx.square_order_id });
+            const paymentsResult = await squareClient.payments.list({} as any);
             let squarePaymentId: string | undefined;
             for await (const payment of paymentsResult) {
-              squarePaymentId = payment.id;
-              break;
+              if ((payment as any).orderId === tx.square_order_id) {
+                squarePaymentId = payment.id;
+                break;
+              }
             }
 
             if (!squarePaymentId) continue;
