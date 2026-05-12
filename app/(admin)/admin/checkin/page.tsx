@@ -39,26 +39,37 @@ export default async function AdminCheckInPage() {
     );
   }
 
-  const { data: campers } = await supabase
-    .from("campers")
-    .select(`
-      id, first_name, last_name, cabin, counselor_name, photo_url, is_staff, session_id,
-      tuition_commitment, tuition_paid,
-      medical_info(
-        food_allergies, medication_allergies, environmental_allergies,
-        conditions, insurance_provider, insurance_policy_number,
-        emergency_contact_1_name, emergency_contact_1_relationship, emergency_contact_1_phone,
-        emergency_contact_2_name, emergency_contact_2_relationship, emergency_contact_2_phone,
-        additional_notes
-      ),
-      medications(id, name, dose, frequency, instructions, time_of_day),
-      checkin_records(checked_in, checked_in_at, checkin_notes, picked_up, picked_up_at, pickup_notes)
-    `)
-    .eq("session_id", sessionId)
-    .eq("is_staff", false)
-    .order("last_name");
+  const [{ data: campers }, { data: tuitionPayments }] = await Promise.all([
+    supabase
+      .from("campers")
+      .select(`
+        id, first_name, last_name, cabin, counselor_name, photo_url, is_staff, session_id,
+        tuition_commitment,
+        medical_info(
+          food_allergies, medication_allergies, environmental_allergies,
+          conditions, insurance_provider, insurance_policy_number,
+          emergency_contact_1_name, emergency_contact_1_relationship, emergency_contact_1_phone,
+          emergency_contact_2_name, emergency_contact_2_relationship, emergency_contact_2_phone,
+          additional_notes
+        ),
+        medications(id, name, dose, frequency, instructions, time_of_day),
+        checkin_records(checked_in, checked_in_at, checkin_notes, picked_up, picked_up_at, pickup_notes)
+      `)
+      .eq("session_id", sessionId)
+      .eq("is_staff", false)
+      .order("last_name"),
+    supabase
+      .from("tuition_payments")
+      .select("camper_id, amount"),
+  ]);
 
   const sessionTuitionAmount: number = (sessions?.find(s => s.id === sessionId) as any)?.tuition_amount ?? 0;
+
+  // Sum payments per camper
+  const paidByCamper: Record<string, number> = {};
+  for (const p of tuitionPayments ?? []) {
+    paidByCamper[p.camper_id] = (paidByCamper[p.camper_id] ?? 0) + p.amount;
+  }
 
   const normalized = (campers ?? []).map((c: any) => ({
     ...c,
@@ -68,7 +79,7 @@ export default async function AdminCheckInPage() {
       ? (c.checkin_records[0] ?? null)
       : (c.checkin_records ?? null),
     tuition_commitment: c.tuition_commitment ?? 0,
-    tuition_paid: c.tuition_paid ?? 0,
+    tuition_paid: paidByCamper[c.id] ?? 0,
   }));
 
   return (

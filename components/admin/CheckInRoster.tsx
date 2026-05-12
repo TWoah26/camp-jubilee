@@ -265,6 +265,21 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
                 )}
               </div>
 
+              {/* Balance due alert */}
+              {(() => {
+                const effectiveCommitment = selected.tuition_commitment > 0 ? selected.tuition_commitment : sessionTuitionAmount;
+                const balanceDue = effectiveCommitment - selected.tuition_paid;
+                return balanceDue > 0 ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">💰 Outstanding Balance</p>
+                    <p className="text-sm text-amber-800">
+                      <span className="font-bold">${balanceDue.toFixed(2)}</span> remaining of {effectiveCommitment === sessionTuitionAmount ? "session default" : "custom"} commitment (${effectiveCommitment.toFixed(2)})
+                    </p>
+                    <p className="text-xs text-amber-600 mt-0.5">${selected.tuition_paid.toFixed(2)} paid so far</p>
+                  </div>
+                ) : null;
+              })()}
+
               {/* Medical alerts */}
               {hasAlerts && (
                 <div className="bg-red-50 border border-red-100 rounded-xl p-3 space-y-1.5">
