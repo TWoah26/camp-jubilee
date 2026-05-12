@@ -20,7 +20,7 @@ export default async function AdminCheckInPage() {
   // Need an active session to run check-in
   const { data: sessions } = await supabase
     .from("sessions")
-    .select("id, name")
+    .select("id, name, tuition_amount")
     .order("start_date", { ascending: false });
 
   const sessionId = currentSessionId ?? sessions?.[0]?.id ?? null;
@@ -43,6 +43,7 @@ export default async function AdminCheckInPage() {
     .from("campers")
     .select(`
       id, first_name, last_name, cabin, counselor_name, photo_url, is_staff, session_id,
+      tuition_commitment, tuition_paid,
       medical_info(
         food_allergies, medication_allergies, environmental_allergies,
         conditions, insurance_provider, insurance_policy_number,
@@ -57,6 +58,8 @@ export default async function AdminCheckInPage() {
     .eq("is_staff", false)
     .order("last_name");
 
+  const sessionTuitionAmount: number = (sessions?.find(s => s.id === sessionId) as any)?.tuition_amount ?? 0;
+
   const normalized = (campers ?? []).map((c: any) => ({
     ...c,
     medical_info: Array.isArray(c.medical_info) ? c.medical_info[0] ?? null : c.medical_info,
@@ -64,6 +67,8 @@ export default async function AdminCheckInPage() {
     checkin_record: Array.isArray(c.checkin_records)
       ? (c.checkin_records[0] ?? null)
       : (c.checkin_records ?? null),
+    tuition_commitment: c.tuition_commitment ?? 0,
+    tuition_paid: c.tuition_paid ?? 0,
   }));
 
   return (
@@ -73,7 +78,7 @@ export default async function AdminCheckInPage() {
           <h1 className="text-2xl font-bold text-jubilee-green-dark">Check-In</h1>
           <p className="text-gray-500 text-sm mt-1">{session.name} — {normalized.length} camper{normalized.length !== 1 ? "s" : ""} registered</p>
         </div>
-        <CheckInRoster campers={normalized} sessionId={sessionId} sessionName={session.name} />
+        <CheckInRoster campers={normalized} sessionId={sessionId} sessionName={session.name} sessionTuitionAmount={sessionTuitionAmount} />
       </div>
     </AppShell>
   );

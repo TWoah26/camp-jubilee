@@ -32,12 +32,15 @@ type Camper = {
   checkin_record: CheckinRecord | null;
   medical_info: any | null;
   medications: any[];
+  tuition_commitment: number;
+  tuition_paid: number;
 };
 
 interface Props {
   campers: Camper[];
   sessionId: string;
   sessionName: string;
+  sessionTuitionAmount: number;
 }
 
 function StatusBadge({ record }: { record: CheckinRecord | null }) {
@@ -50,7 +53,7 @@ function StatusBadge({ record }: { record: CheckinRecord | null }) {
   return <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-jubilee-green/20 text-jubilee-green font-medium">✓ Checked in</span>;
 }
 
-export default function CheckInRoster({ campers, sessionId, sessionName }: Props) {
+export default function CheckInRoster({ campers, sessionId, sessionName, sessionTuitionAmount }: Props) {
   const [search, setSearch] = useState("");
   const [cabinFilter, setCabinFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "checked_in" | "picked_up">("all");
@@ -191,6 +194,8 @@ export default function CheckInRoster({ campers, sessionId, sessionName }: Props
           {filtered.map(camper => {
             const r = localRecords[camper.id];
             const isSelected = selected?.id === camper.id;
+            const effectiveCommitment = camper.tuition_commitment > 0 ? camper.tuition_commitment : sessionTuitionAmount;
+            const balanceDue = effectiveCommitment - camper.tuition_paid;
             return (
               <button
                 key={camper.id}
@@ -206,9 +211,13 @@ export default function CheckInRoster({ campers, sessionId, sessionName }: Props
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-jubilee-navy truncate">{camper.first_name} {camper.last_name}</p>
                   <p className="text-xs text-gray-400">{camper.cabin ?? "No cabin"}{camper.counselor_name ? ` · ${camper.counselor_name}` : ""}</p>
+                  {balanceDue > 0 && (
+                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600 font-medium mt-0.5">
+                      💰 Balance Due: ${balanceDue.toFixed(2)}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {hasAlerts && camper.id === selected?.id ? null : null}
                   {camper.medical_info && (camper.medical_info.food_allergies || camper.medical_info.medication_allergies || camper.medical_info.environmental_allergies || camper.medical_info.conditions) && (
                     <span className="text-xs text-red-500" title="Has medical alerts">⚠️</span>
                   )}

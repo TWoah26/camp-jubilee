@@ -27,6 +27,9 @@ interface Props {
   initialBalance: number;
   initialTransactions: Transaction[];
   initialPayments: Payment[];
+  sessionTuitionAmount: number;
+  initialTuitionCommitment: number;
+  initialTuitionPaid: number;
 }
 
 export default function CamperFinanceSection({
@@ -35,10 +38,40 @@ export default function CamperFinanceSection({
   initialBalance,
   initialTransactions,
   initialPayments,
+  sessionTuitionAmount,
+  initialTuitionCommitment,
+  initialTuitionPaid,
 }: Props) {
   const [balance, setBalance] = useState(initialBalance);
   const [transactions, setTransactions] = useState(initialTransactions);
   const [payments, setPayments] = useState(initialPayments);
+  const [tuitionCommitment, setTuitionCommitment] = useState(initialTuitionCommitment);
+  const [tuitionPaid] = useState(initialTuitionPaid);
+  const [editingCommitment, setEditingCommitment] = useState(false);
+  const [commitmentInput, setCommitmentInput] = useState(
+    initialTuitionCommitment > 0 ? String(initialTuitionCommitment) : ""
+  );
+  const [savingCommitment, setSavingCommitment] = useState(false);
+
+  const effectiveCommitment = tuitionCommitment > 0 ? tuitionCommitment : sessionTuitionAmount;
+  const balanceDue = effectiveCommitment - tuitionPaid;
+
+  const saveCommitment = async () => {
+    setSavingCommitment(true);
+    const parsed = parseFloat(commitmentInput);
+    const value = isNaN(parsed) || commitmentInput.trim() === "" ? 0 : parsed;
+    const res = await fetch("/api/admin/campers/tuition-commitment", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ camper_id: camperId, tuition_commitment: value }),
+    });
+    if (res.ok) {
+      setTuitionCommitment(value);
+      setCommitmentInput(value > 0 ? String(value) : "");
+    }
+    setSavingCommitment(false);
+    setEditingCommitment(false);
+  };
 
   const totalTuition = payments.reduce((sum, p) => sum + p.amount, 0);
 
@@ -66,6 +99,81 @@ export default function CamperFinanceSection({
 
   return (
     <div className="space-y-4">
+      {/* Tuition summary card */}
+      <div className="bg-white rounded-2xl shadow p-5">
+        <h2 className="font-semibold text-jubilee-navy mb-4">Tuition</h2>
+        <div className="space-y-3 text-sm">
+          {/* Session cost */}
+          <div className="flex justify-between items-center">
+            <span className="text-gray-500">Session Cost</span>
+            <span className="font-medium">{formatCurrency(sessionTuitionAmount)}</span>
+          </div>
+
+          {/* Commitment */}
+          <div className="flex justify-between items-center">
+            <span className="text-gray-500">Commitment</span>
+            {editingCommitment ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={commitmentInput}
+                  onChange={e => setCommitmentInput(e.target.value)}
+                  placeholder={String(sessionTuitionAmount)}
+                  className="w-28 border border-jubilee-gold rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-jubilee-gold text-right"
+                  autoFocus
+                  onKeyDown={e => { if (e.key === "Enter") saveCommitment(); if (e.key === "Escape") setEditingCommitment(false); }}
+                />
+                <button
+                  onClick={saveCommitment}
+                  disabled={savingCommitment}
+                  className="text-xs bg-jubilee-green text-white px-2 py-1 rounded-lg disabled:opacity-50"
+                >
+                  {savingCommitment ? "…" : "Save"}
+                </button>
+                <button
+                  onClick={() => setEditingCommitment(false)}
+                  className="text-xs text-gray-400 hover:text-gray-600"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="font-medium">
+                  {tuitionCommitment > 0
+                    ? formatCurrency(tuitionCommitment)
+                    : <span>{formatCurrency(sessionTuitionAmount)} <span className="text-xs text-gray-400 font-normal">(session default)</span></span>
+                  }
+                </span>
+                <button
+                  onClick={() => { setEditingCommitment(true); setCommitmentInput(tuitionCommitment > 0 ? String(tuitionCommitment) : ""); }}
+                  className="text-gray-400 hover:text-jubilee-navy transition-colors"
+                  title="Edit commitment"
+                >
+                  ✏️
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Total paid */}
+          <div className="flex justify-between items-center">
+            <span className="text-gray-500">Total Paid</span>
+            <span className="font-medium text-jubilee-green">{formatCurrency(tuitionPaid)}</span>
+          </div>
+
+          {/* Balance due */}
+          <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+            <span className="font-semibold text-jubilee-navy">Balance Due</span>
+            <span className={`font-bold text-lg ${balanceDue > 0 ? "text-red-500" : "text-jubilee-green"}`}>
+              {formatCurrency(Math.max(0, balanceDue))}
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Store balance card */}
       <div className="bg-jubilee-navy rounded-2xl shadow p-5 text-white">
         <div className="flex items-start justify-between">

@@ -24,7 +24,7 @@ export default async function AdminCamperDetailPage({ params }: { params: Promis
 
   const { data: camper } = await supabase
     .from("campers")
-    .select("*, session:sessions(id, name)")
+    .select("*, session:sessions(id, name, tuition_amount)")
     .eq("id", id)
     .single();
 
@@ -117,6 +117,9 @@ export default async function AdminCamperDetailPage({ params }: { params: Promis
           initialBalance={camper.store_balance}
           initialTransactions={storeTransactions ?? []}
           initialPayments={tuitionPayments ?? []}
+          sessionTuitionAmount={(camper as any).session?.tuition_amount ?? 0}
+          initialTuitionCommitment={camper.tuition_commitment ?? 0}
+          initialTuitionPaid={camper.tuition_paid ?? 0}
         />
 
         {/* Medical info */}
