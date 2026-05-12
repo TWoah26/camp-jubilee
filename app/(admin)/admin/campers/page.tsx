@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAdminSessionId } from "@/lib/admin-session";
 import AppShell from "@/components/AppShell";
 import CamperRoster from "@/components/admin/CamperRoster";
+import CamperImporter from "@/components/admin/CamperImporter";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,12 @@ export default async function AdminCampersPage({
     .select("id, name")
     .order("start_date", { ascending: true });
 
+  const { data: activeSession } = await supabase
+    .from("sessions")
+    .select("id")
+    .eq("is_active", true)
+    .maybeSingle();
+
   return (
     <AppShell role={profile.role} userName={profile.name}>
       <div className="space-y-6">
@@ -51,6 +58,7 @@ export default async function AdminCampersPage({
             ? `Search: "${initialSearch}"`
             : `Roster${selectedSessionId && sessions ? ` — ${sessions.find(s => s.id === selectedSessionId)?.name ?? ""}` : ""}`}
         </h1>
+        <CamperImporter sessionId={activeSession?.id ?? null} />
         <CamperRoster
           campers={campers ?? []}
           staff={staff ?? []}
