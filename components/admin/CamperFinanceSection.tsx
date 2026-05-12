@@ -49,6 +49,9 @@ export default function CamperFinanceSection({
     initialTuitionCommitment > 0 ? String(initialTuitionCommitment) : ""
   );
   const [savingCommitment, setSavingCommitment] = useState(false);
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+  const [editPaymentData, setEditPaymentData] = useState({ amount: "", payment_method: "cash", notes: "" });
+  const [savingPaymentEdit, setSavingPaymentEdit] = useState(false);
 
   const effectiveCommitment = tuitionCommitment > 0 ? tuitionCommitment : sessionTuitionAmount;
 
@@ -82,6 +85,37 @@ export default function CamperFinanceSection({
       note: "Manual credit",
       created_at: new Date().toISOString(),
     }, ...prev]);
+  };
+
+  const handleDeletePayment = async (id: string) => {
+    if (!confirm("Delete this payment? This cannot be undone.")) return;
+    const res = await fetch("/api/admin/payments/record", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) setPayments(prev => prev.filter(p => p.id !== id));
+  };
+
+  const startEditPayment = (p: Payment) => {
+    setEditingPaymentId(p.id);
+    setEditPaymentData({ amount: String(p.amount), payment_method: p.payment_method ?? "cash", notes: p.notes ?? "" });
+  };
+
+  const saveEditPayment = async (id: string) => {
+    const amt = parseFloat(editPaymentData.amount);
+    if (isNaN(amt) || amt <= 0) return;
+    setSavingPaymentEdit(true);
+    const res = await fetch("/api/admin/payments/record", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, amount: amt, payment_method: editPaymentData.payment_method, notes: editPaymentData.notes }),
+    });
+    if (res.ok) {
+      setPayments(prev => prev.map(p => p.id === id ? { ...p, amount: amt, payment_method: editPaymentData.payment_method, notes: editPaymentData.notes } : p));
+      setEditingPaymentId(null);
+    }
+    setSavingPaymentEdit(false);
   };
 
   const handlePaymentRecorded = (amount: number) => {
@@ -221,12 +255,55 @@ export default function CamperFinanceSection({
         ) : (
           <div className="space-y-2 mb-3">
             {payments.map(p => (
-              <div key={p.id} className="flex justify-between items-center py-2 border-b last:border-0 text-sm">
-                <div>
-                  <p className="font-medium">{p.notes || "Payment"}{p.payment_method ? ` · ${p.payment_method}` : ""}</p>
-                  <p className="text-xs text-gray-400">{formatDate(p.paid_at)}</p>
-                </div>
-                <span className="font-semibold text-jubilee-green">{formatCurrency(p.amount)}</span>
+              <div key={p.id} className="py-2 border-b last:border-0 text-sm">
+                {editingPaymentId === p.id ? (
+                  <div className="space-y-2 bg-gray-50 p-3 rounded-lg">
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                        <input
+                          type="number" min="0.01" step="0.01"
+                          value={editPaymentData.amount}
+                          onChange={e => setEditPaymentData(d => ({ ...d, amount: e.target.value }))}
+                          className="w-full border border-gray-300 rounded-lg pl-5 pr-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
+                          autoFocus
+                        />
+                      </div>
+                      <select
+                        value={editPaymentData.payment_method}
+                        onChange={e => setEditPaymentData(d => ({ ...d, payment_method: e.target.value }))}
+                        className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
+                      >
+                        {["cash","check","card","other"].map(m => <option key={m} value={m}>{m.charAt(0).toUpperCase()+m.slice(1)}</option>)}
+                      </select>
+                    </div>
+                    <input
+                      type="text"
+                      value={editPaymentData.notes}
+                      onChange={e => setEditPaymentData(d => ({ ...d, notes: e.target.value }))}
+                      placeholder="Notes (optional)"
+                      className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={() => saveEditPayment(p.id)} disabled={savingPaymentEdit} className="bg-jubilee-green text-white px-3 py-1 rounded-lg text-xs font-medium disabled:opacity-50">
+                        {savingPaymentEdit ? "Saving…" : "Save"}
+                      </button>
+                      <button onClick={() => setEditingPaymentId(null)} className="border border-gray-200 text-gray-600 px-3 py-1 rounded-lg text-xs">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-medium">{p.notes || "Payment"}{p.payment_method ? ` · ${p.payment_method}` : ""}</p>
+                      <p className="text-xs text-gray-400">{formatDate(p.paid_at)}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-semibold text-jubilee-green">{formatCurrency(p.amount)}</span>
+                      <button onClick={() => startEditPayment(p)} className="text-xs text-gray-400 hover:text-jubilee-navy">Edit</button>
+                      <button onClick={() => handleDeletePayment(p.id)} className="text-xs text-red-400 hover:text-red-600">Delete</button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
