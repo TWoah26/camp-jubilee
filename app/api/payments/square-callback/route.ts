@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -10,7 +10,7 @@ export async function GET(req: Request) {
     const parentId = searchParams.get("parent_id");
     const orderId = searchParams.get("orderId") ?? searchParams.get("checkoutId");
 
-    const supabase = await createClient();
+    const supabase = await createAdminClient();
 
     if (type === "store_credit_multi") {
       // Multi-camper store credit
