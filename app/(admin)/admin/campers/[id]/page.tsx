@@ -87,22 +87,42 @@ export default async function AdminCamperDetailPage({ params }: { params: Promis
 
         </div>
 
-        {/* Parents linked */}
-        {parentLinks && parentLinks.length > 0 && (
-          <div className="bg-white rounded-2xl shadow p-5">
-            <h2 className="font-semibold text-jubilee-navy mb-3">Linked Parents</h2>
-            <div className="space-y-2">
-              {parentLinks.map((l: any) => (
-                <div key={l.id} className="flex items-center justify-between py-1.5">
-                  <div>
-                    <p className="text-sm font-medium">{l.parent?.name}</p>
-                    <p className="text-xs text-gray-400">{l.parent?.email}</p>
+        {/* Parents */}
+        <div className="bg-white rounded-2xl shadow p-5">
+          <h2 className="font-semibold text-jubilee-navy mb-3">Parent / Contact</h2>
+          <div className="space-y-3">
+            {/* Linked app accounts */}
+            {parentLinks && parentLinks.length > 0 && (
+              <div className="space-y-2">
+                {parentLinks.map((l: any) => (
+                  <div key={l.id} className="flex items-center gap-3 py-1.5">
+                    <div className="w-7 h-7 rounded-full bg-jubilee-green/10 flex items-center justify-center text-sm">✓</div>
+                    <div>
+                      <p className="text-sm font-medium">{l.parent?.name}</p>
+                      <p className="text-xs text-gray-400">{l.parent?.email} <span className="text-jubilee-green font-medium">· App linked</span></p>
+                    </div>
                   </div>
+                ))}
+              </div>
+            )}
+
+            {/* CSV-imported parent email (shown when no linked account or different from linked) */}
+            {(camper as any).parent_email && !(parentLinks ?? []).some((l: any) => l.parent?.email === (camper as any).parent_email) && (
+              <div className="flex items-center gap-3 py-1.5">
+                <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-sm">✉️</div>
+                <div>
+                  <p className="text-sm font-medium">{(camper as any).parent_name || "Parent"}</p>
+                  <p className="text-xs text-gray-400">{(camper as any).parent_email} <span className="text-amber-500 font-medium">· Invite sent, not yet linked</span></p>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+
+            {/* No contact info at all */}
+            {!(parentLinks?.length) && !(camper as any).parent_email && (
+              <p className="text-sm text-gray-400">No parent contact on file.</p>
+            )}
           </div>
-        )}
+        </div>
 
         <CamperFinanceSection
           camperId={camper.id}

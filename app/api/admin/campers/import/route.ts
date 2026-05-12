@@ -98,6 +98,8 @@ export async function POST(req: Request) {
           store_balance: 0,
           camper_code: camperCode,
           is_staff: false,
+          parent_email: row.parent_email?.trim().toLowerCase() || null,
+          parent_name: row.parent_name?.trim() || null,
         })
         .select("id")
         .single();
