@@ -33,7 +33,7 @@ export default async function CamperDetailPage({ params }: { params: Promise<{ i
   if (camper.session_id) {
     const { data: sessionRow } = await supabase
       .from("sessions")
-      .select("show_cabin_info, is_active, session_closed")
+      .select("show_cabin_info, is_active, session_closed, tuition_amount")
       .eq("id", camper.session_id)
       .single();
     session = sessionRow ?? null;
@@ -42,7 +42,7 @@ export default async function CamperDetailPage({ params }: { params: Promise<{ i
   if (!session) {
     const { data: sessionRows } = await supabase
       .from("sessions")
-      .select("show_cabin_info, is_active, session_closed")
+      .select("show_cabin_info, is_active, session_closed, tuition_amount")
       .eq("is_active", true)
       .order("created_at", { ascending: false })
       .limit(1);
@@ -81,6 +81,10 @@ export default async function CamperDetailPage({ params }: { params: Promise<{ i
   ]);
 
   const showCabinInfo = session?.show_cabin_info ?? false;
+  const sessionTuitionAmount = (session as any)?.tuition_amount ?? 0;
+  const effectiveCommitment = camper.tuition_commitment > 0 ? camper.tuition_commitment : sessionTuitionAmount;
+  const totalPaid = (tuitionPayments ?? []).reduce((sum: number, p: any) => sum + p.amount, 0);
+  const balanceDue = Math.max(0, effectiveCommitment - totalPaid);
 
   return (
     <AppShell role={profile.role} userName={profile.name}>
@@ -155,6 +159,21 @@ export default async function CamperDetailPage({ params }: { params: Promise<{ i
               Add Funds →
             </Link>
           </div>
+
+          {effectiveCommitment > 0 && (
+            <div className={`rounded-2xl shadow p-5 ${balanceDue > 0 ? "bg-jubilee-coral" : "bg-jubilee-green"} text-white`}>
+              <h2 className="font-semibold mb-1">Registration Fee</h2>
+              <p className="text-4xl font-bold">{formatCurrency(balanceDue)}</p>
+              <p className="text-sm mt-1 text-white/80">
+                {balanceDue > 0 ? `${formatCurrency(totalPaid)} paid of ${formatCurrency(effectiveCommitment)}` : "Paid in full ✓"}
+              </p>
+              {balanceDue > 0 && (
+                <Link href="/payments" className="mt-3 inline-block bg-white text-jubilee-coral px-4 py-1.5 rounded-lg text-sm font-medium">
+                  Make Payment →
+                </Link>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl shadow p-5">

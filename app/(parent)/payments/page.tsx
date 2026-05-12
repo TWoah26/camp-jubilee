@@ -98,7 +98,7 @@ export default async function PaymentsPage() {
                             sessionId={session.id}
                             parentId={user.id}
                             depositAmount={session.deposit_amount}
-                            tuitionAmount={session.tuition_amount}
+                            tuitionAmount={camper.tuition_commitment > 0 ? camper.tuition_commitment : session.tuition_amount}
                             amountPaid={amountPaid}
                           />
                           {sessionCampers.indexOf(camper) < sessionCampers.length - 1 && (
