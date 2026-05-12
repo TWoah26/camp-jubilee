@@ -119,7 +119,6 @@ export default async function AdminCamperDetailPage({ params }: { params: Promis
           initialPayments={tuitionPayments ?? []}
           sessionTuitionAmount={(camper as any).session?.tuition_amount ?? 0}
           initialTuitionCommitment={camper.tuition_commitment ?? 0}
-          initialTuitionPaid={camper.tuition_paid ?? 0}
         />
 
         {/* Medical info */}

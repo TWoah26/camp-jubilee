@@ -29,7 +29,6 @@ interface Props {
   initialPayments: Payment[];
   sessionTuitionAmount: number;
   initialTuitionCommitment: number;
-  initialTuitionPaid: number;
 }
 
 export default function CamperFinanceSection({
@@ -40,13 +39,11 @@ export default function CamperFinanceSection({
   initialPayments,
   sessionTuitionAmount,
   initialTuitionCommitment,
-  initialTuitionPaid,
 }: Props) {
   const [balance, setBalance] = useState(initialBalance);
   const [transactions, setTransactions] = useState(initialTransactions);
   const [payments, setPayments] = useState(initialPayments);
   const [tuitionCommitment, setTuitionCommitment] = useState(initialTuitionCommitment);
-  const [tuitionPaid] = useState(initialTuitionPaid);
   const [editingCommitment, setEditingCommitment] = useState(false);
   const [commitmentInput, setCommitmentInput] = useState(
     initialTuitionCommitment > 0 ? String(initialTuitionCommitment) : ""
@@ -54,7 +51,6 @@ export default function CamperFinanceSection({
   const [savingCommitment, setSavingCommitment] = useState(false);
 
   const effectiveCommitment = tuitionCommitment > 0 ? tuitionCommitment : sessionTuitionAmount;
-  const balanceDue = effectiveCommitment - tuitionPaid;
 
   const saveCommitment = async () => {
     setSavingCommitment(true);
@@ -74,6 +70,7 @@ export default function CamperFinanceSection({
   };
 
   const totalTuition = payments.reduce((sum, p) => sum + p.amount, 0);
+  const balanceDue = effectiveCommitment - totalTuition;
 
   const handleCreditAdded = (newBalance: number) => {
     setBalance(newBalance);
@@ -161,7 +158,7 @@ export default function CamperFinanceSection({
           {/* Total paid */}
           <div className="flex justify-between items-center">
             <span className="text-gray-500">Total Paid</span>
-            <span className="font-medium text-jubilee-green">{formatCurrency(tuitionPaid)}</span>
+            <span className="font-medium text-jubilee-green">{formatCurrency(totalTuition)}</span>
           </div>
 
           {/* Balance due */}
