@@ -8,16 +8,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // Verify this parent is linked to this camper
-    const { data: link } = await supabase
-      .from("parent_camper_links")
-      .select("id")
-      .eq("parent_id", user.id)
-      .eq("camper_id", camper_id)
-      .eq("approved", true)
-      .single();
+    // Allow staff roles or linked parents
+    const { data: profile } = await supabase.from("users").select("role").eq("id", user.id).single();
+    const isStaff = ["director", "administrator", "nurse"].includes(profile?.role);
 
-    if (!link) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!isStaff) {
+      const { data: link } = await supabase
+        .from("parent_camper_links")
+        .select("id")
+        .eq("parent_id", user.id)
+        .eq("camper_id", camper_id)
+        .eq("approved", true)
+        .single();
+
+      if (!link) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const { medical, medications } = await req.json();
 
