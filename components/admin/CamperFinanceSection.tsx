@@ -52,6 +52,9 @@ export default function CamperFinanceSection({
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [editPaymentData, setEditPaymentData] = useState({ amount: "", payment_method: "cash", notes: "" });
   const [savingPaymentEdit, setSavingPaymentEdit] = useState(false);
+  const [editingTxId, setEditingTxId] = useState<string | null>(null);
+  const [editTxData, setEditTxData] = useState({ amount: "", note: "" });
+  const [savingTxEdit, setSavingTxEdit] = useState(false);
 
   const effectiveCommitment = tuitionCommitment > 0 ? tuitionCommitment : sessionTuitionAmount;
 
@@ -126,6 +129,43 @@ export default function CamperFinanceSection({
       notes: null,
       paid_at: new Date().toISOString(),
     }, ...prev]);
+  };
+
+  const startEditTx = (tx: Transaction) => {
+    setEditingTxId(tx.id);
+    setEditTxData({ amount: String(tx.amount), note: tx.note ?? "" });
+  };
+
+  const saveEditTx = async (id: string) => {
+    const amt = parseFloat(editTxData.amount);
+    if (isNaN(amt) || amt <= 0) return;
+    setSavingTxEdit(true);
+    const res = await fetch("/api/admin/store/transaction", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, amount: amt, note: editTxData.note }),
+    });
+    if (res.ok) {
+      const { new_balance } = await res.json();
+      setTransactions(prev => prev.map(tx => tx.id === id ? { ...tx, amount: amt, note: editTxData.note } : tx));
+      setBalance(new_balance);
+      setEditingTxId(null);
+    }
+    setSavingTxEdit(false);
+  };
+
+  const handleDeleteTx = async (id: string) => {
+    if (!confirm("Delete this transaction? The balance will be adjusted automatically.")) return;
+    const res = await fetch("/api/admin/store/transaction", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) {
+      const { new_balance } = await res.json();
+      setTransactions(prev => prev.filter(tx => tx.id !== id));
+      setBalance(new_balance);
+    }
   };
 
   return (
@@ -230,14 +270,51 @@ export default function CamperFinanceSection({
         ) : (
           <div className="space-y-2">
             {transactions.map(tx => (
-              <div key={tx.id} className="flex justify-between items-center py-2 border-b last:border-0 text-sm">
-                <div>
-                  <p className="font-medium">{tx.note || (tx.type === "credit" ? "Funds added" : "Purchase")}</p>
-                  <p className="text-xs text-gray-400">{formatDateTime(tx.created_at)}</p>
-                </div>
-                <span className={`font-semibold ${tx.type === "credit" ? "text-jubilee-green" : "text-red-500"}`}>
-                  {tx.type === "credit" ? "+" : "-"}{formatCurrency(Math.abs(tx.amount))}
-                </span>
+              <div key={tx.id} className="py-2 border-b last:border-0 text-sm">
+                {editingTxId === tx.id ? (
+                  <div className="space-y-2 bg-gray-50 p-3 rounded-lg">
+                    <div className="flex gap-2 items-center">
+                      <span className="text-xs text-gray-500 shrink-0">{tx.type === "credit" ? "Credit" : "Debit"}</span>
+                      <div className="relative flex-1">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                        <input
+                          type="number" min="0.01" step="0.01"
+                          value={editTxData.amount}
+                          onChange={e => setEditTxData(d => ({ ...d, amount: e.target.value }))}
+                          className="w-full border border-gray-300 rounded-lg pl-5 pr-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+                    <input
+                      type="text"
+                      value={editTxData.note}
+                      onChange={e => setEditTxData(d => ({ ...d, note: e.target.value }))}
+                      placeholder="Note (optional)"
+                      className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={() => saveEditTx(tx.id)} disabled={savingTxEdit} className="bg-jubilee-green text-white px-3 py-1 rounded-lg text-xs font-medium disabled:opacity-50">
+                        {savingTxEdit ? "Saving…" : "Save"}
+                      </button>
+                      <button onClick={() => setEditingTxId(null)} className="border border-gray-200 text-gray-600 px-3 py-1 rounded-lg text-xs">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-medium">{tx.note || (tx.type === "credit" ? "Funds added" : "Purchase")}</p>
+                      <p className="text-xs text-gray-400">{formatDateTime(tx.created_at)}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`font-semibold ${tx.type === "credit" ? "text-jubilee-green" : "text-red-500"}`}>
+                        {tx.type === "credit" ? "+" : "-"}{formatCurrency(Math.abs(tx.amount))}
+                      </span>
+                      <button onClick={() => startEditTx(tx)} className="text-xs text-gray-400 hover:text-jubilee-navy">Edit</button>
+                      <button onClick={() => handleDeleteTx(tx.id)} className="text-xs text-red-400 hover:text-red-600">Delete</button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
