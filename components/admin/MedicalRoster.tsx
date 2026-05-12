@@ -30,6 +30,8 @@ type MedInfo = {
   updated_at?: string;
 };
 
+type Parent = { id: string; name: string; email: string };
+
 type Camper = {
   id: string;
   first_name: string;
@@ -40,6 +42,7 @@ type Camper = {
   session?: { name: string } | null;
   medical_info?: MedInfo | null;
   medications?: Medication[];
+  parents?: Parent[];
 };
 
 interface Props {
@@ -108,80 +111,115 @@ function CamperCard({ camper, timeFilter }: { camper: Camper; timeFilter: string
 
       {open && (
         <div className="px-5 pb-5 border-t border-gray-100 space-y-4 pt-4">
-          {!hasInfo ? (
-            <p className="text-sm text-gray-400 italic">Parent has not submitted medical information yet.</p>
-          ) : (
-            <>
-              {/* Emergency Contacts */}
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">🚨 Emergency Contacts</p>
-                <div className="grid sm:grid-cols-2 gap-3 text-sm">
-                  {m?.emergency_contact_1_name ? (
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="font-medium">{m.emergency_contact_1_name} <span className="text-gray-400 font-normal">({m.emergency_contact_1_relationship})</span></p>
-                      <p className="text-jubilee-navy">{m.emergency_contact_1_phone}</p>
-                    </div>
-                  ) : <p className="text-gray-400 text-xs">Contact 1 not provided</p>}
-                  {m?.emergency_contact_2_name ? (
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="font-medium">{m.emergency_contact_2_name} <span className="text-gray-400 font-normal">({m.emergency_contact_2_relationship})</span></p>
-                      <p className="text-jubilee-navy">{m.emergency_contact_2_phone}</p>
-                    </div>
-                  ) : null}
-                </div>
+
+          {/* Linked Parents / Contacts */}
+          {(camper.parents ?? []).length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">👨‍👩‍👧 Linked Parents</p>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {(camper.parents ?? []).map(p => (
+                  <div key={p.id} className="bg-jubilee-navy/5 rounded-lg p-3 text-sm">
+                    <p className="font-medium text-jubilee-navy">{p.name}</p>
+                    <p className="text-gray-500 text-xs mt-0.5">{p.email}</p>
+                  </div>
+                ))}
               </div>
+            </div>
+          )}
 
-              {/* Allergies */}
-              {(m?.food_allergies || m?.medication_allergies || m?.environmental_allergies) && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">⚠️ Allergies</p>
-                  <div className="space-y-1.5 text-sm">
-                    {m.food_allergies && <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2"><span className="text-red-600 font-medium">Food: </span>{m.food_allergies}</div>}
-                    {m.medication_allergies && <div className="bg-orange-50 border border-orange-100 rounded-lg px-3 py-2"><span className="text-orange-600 font-medium">Medication: </span>{m.medication_allergies}</div>}
-                    {m.environmental_allergies && <div className="bg-yellow-50 border border-yellow-100 rounded-lg px-3 py-2"><span className="text-yellow-700 font-medium">Environmental: </span>{m.environmental_allergies}</div>}
+          {/* Emergency Contacts from medical form */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">🚨 Emergency Contacts</p>
+            {!hasInfo ? (
+              <p className="text-xs text-gray-400 italic">Medical form not yet submitted — no emergency contacts on file.</p>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                {m?.emergency_contact_1_name ? (
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="font-medium">{m.emergency_contact_1_name}
+                      {m.emergency_contact_1_relationship && <span className="text-gray-400 font-normal"> ({m.emergency_contact_1_relationship})</span>}
+                    </p>
+                    {m.emergency_contact_1_phone && <p className="text-jubilee-navy mt-0.5">{m.emergency_contact_1_phone}</p>}
                   </div>
-                </div>
-              )}
+                ) : <p className="text-gray-400 text-xs">Contact 1 not provided</p>}
+                {m?.emergency_contact_2_name && (
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="font-medium">{m.emergency_contact_2_name}
+                      {m.emergency_contact_2_relationship && <span className="text-gray-400 font-normal"> ({m.emergency_contact_2_relationship})</span>}
+                    </p>
+                    {m.emergency_contact_2_phone && <p className="text-jubilee-navy mt-0.5">{m.emergency_contact_2_phone}</p>}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
-              {/* Conditions */}
-              {m?.conditions && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">🏥 Medical Conditions</p>
-                  <p className="text-sm bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">{m.conditions}</p>
-                </div>
-              )}
+          {/* Allergies */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">⚠️ Allergies</p>
+            {!hasInfo || !(m?.food_allergies || m?.medication_allergies || m?.environmental_allergies) ? (
+              <p className="text-xs text-gray-400 italic">{hasInfo ? "None reported" : "No form submitted yet"}</p>
+            ) : (
+              <div className="space-y-1.5 text-sm">
+                {m?.food_allergies && <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2"><span className="text-red-600 font-medium">Food: </span>{m.food_allergies}</div>}
+                {m?.medication_allergies && <div className="bg-orange-50 border border-orange-100 rounded-lg px-3 py-2"><span className="text-orange-600 font-medium">Medication: </span>{m.medication_allergies}</div>}
+                {m?.environmental_allergies && <div className="bg-yellow-50 border border-yellow-100 rounded-lg px-3 py-2"><span className="text-yellow-700 font-medium">Environmental: </span>{m.environmental_allergies}</div>}
+              </div>
+            )}
+          </div>
 
-              {/* Medications */}
-              {meds.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                    💊 Medications{timeFilter !== "all" ? ` — ${TIME_OPTIONS.find(t => t.value === timeFilter)?.label}` : ""}
-                  </p>
-                  <div className="space-y-2">
-                    {meds.map(med => (
-                      <div key={med.id} className={`border rounded-lg px-3 py-2 text-sm ${timeFilter !== "all" ? "bg-jubilee-gold/10 border-jubilee-gold/30" : "bg-blue-50 border-blue-100"}`}>
-                        <p className="font-medium text-jubilee-navy">{med.name} {med.dose && <span className="font-normal text-gray-600">— {med.dose}</span>}</p>
-                        {med.frequency && <p className="text-gray-600 text-xs mt-0.5">{med.frequency}</p>}
-                        {med.instructions && <p className="text-gray-500 text-xs mt-0.5 italic">{med.instructions}</p>}
-                        {(med.time_of_day ?? []).length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1.5">
-                            {(med.time_of_day ?? []).map(t => {
-                              const opt = TIME_OPTIONS.find(o => o.value === t);
-                              return opt ? (
-                                <span key={t} className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${t === timeFilter ? "bg-jubilee-gold text-white" : "bg-white border border-gray-200 text-gray-600"}`}>
-                                  {opt.label}
-                                </span>
-                              ) : null;
-                            })}
-                          </div>
-                        )}
+          {/* Conditions */}
+          {hasInfo && m?.conditions && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">🏥 Medical Conditions</p>
+              <p className="text-sm bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">{m.conditions}</p>
+            </div>
+          )}
+
+          {/* Medications */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              💊 Medications{timeFilter !== "all" ? ` — ${TIME_OPTIONS.find(t => t.value === timeFilter)?.label}` : ""}
+            </p>
+            {meds.length === 0 ? (
+              <p className="text-xs text-gray-400 italic">{hasInfo ? "No medications on file" : "No form submitted yet"}</p>
+            ) : (
+              <div className="space-y-2">
+                {meds.map(med => (
+                  <div key={med.id} className={`border rounded-lg px-3 py-2 text-sm ${timeFilter !== "all" ? "bg-jubilee-gold/10 border-jubilee-gold/30" : "bg-blue-50 border-blue-100"}`}>
+                    <p className="font-medium text-jubilee-navy">{med.name} {med.dose && <span className="font-normal text-gray-600">— {med.dose}</span>}</p>
+                    {med.frequency && <p className="text-gray-600 text-xs mt-0.5">{med.frequency}</p>}
+                    {med.instructions && <p className="text-gray-500 text-xs mt-0.5 italic">{med.instructions}</p>}
+                    {(med.time_of_day ?? []).length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {(med.time_of_day ?? []).map(t => {
+                          const opt = TIME_OPTIONS.find(o => o.value === t);
+                          return opt ? (
+                            <span key={t} className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${t === timeFilter ? "bg-jubilee-gold text-white" : "bg-white border border-gray-200 text-gray-600"}`}>
+                              {opt.label}
+                            </span>
+                          ) : null;
+                        })}
                       </div>
-                    ))}
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Doctor & Insurance */}
+          {hasInfo && (m?.doctor_name || m?.insurance_provider) && (
+            <div className="grid sm:grid-cols-2 gap-3">
+              {m?.doctor_name && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">🩺 Doctor</p>
+                  <div className="bg-gray-50 rounded-lg p-3 text-sm">
+                    <p className="font-medium">{m.doctor_name}</p>
+                    {m.doctor_phone && <p className="text-gray-500 text-xs mt-0.5">{m.doctor_phone}</p>}
                   </div>
                 </div>
               )}
-
-              {/* Insurance */}
               {m?.insurance_provider && (
                 <div>
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">🛡️ Insurance</p>
@@ -191,19 +229,19 @@ function CamperCard({ camper, timeFilter }: { camper: Camper; timeFilter: string
                   </div>
                 </div>
               )}
+            </div>
+          )}
 
-              {/* Additional Notes */}
-              {m?.additional_notes && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">📝 Additional Notes</p>
-                  <p className="text-sm bg-gray-50 rounded-lg px-3 py-2">{m.additional_notes}</p>
-                </div>
-              )}
+          {/* Additional Notes */}
+          {hasInfo && m?.additional_notes && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">📝 Additional Notes</p>
+              <p className="text-sm bg-gray-50 rounded-lg px-3 py-2">{m.additional_notes}</p>
+            </div>
+          )}
 
-              {m?.updated_at && (
-                <p className="text-xs text-gray-300 text-right">Last updated {new Date(m.updated_at).toLocaleDateString()}</p>
-              )}
-            </>
+          {m?.updated_at && (
+            <p className="text-xs text-gray-300 text-right">Last updated {new Date(m.updated_at).toLocaleDateString()}</p>
           )}
         </div>
       )}

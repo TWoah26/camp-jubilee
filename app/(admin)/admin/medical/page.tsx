@@ -11,7 +11,7 @@ export default async function AdminMedicalPage() {
   const { data: profile } = await supabase.from("users").select("*").eq("id", user.id).single();
   if (!profile || !["director","administrator","nurse"].includes(profile.role)) redirect("/dashboard");
 
-  const [{ data: campers }, { data: sessions }] = await Promise.all([
+  const [{ data: campers }, { data: sessions }, { data: parentLinks }] = await Promise.all([
     supabase
       .from("campers")
       .select(`
@@ -33,13 +33,25 @@ export default async function AdminMedicalPage() {
       .from("sessions")
       .select("id, name")
       .order("start_date", { ascending: true }),
+    supabase
+      .from("parent_camper_links")
+      .select("camper_id, parent:users(id, name, email)")
+      .eq("approved", true),
   ]);
+
+  // Build a map of camper_id → linked parents
+  const parentsByCamper: Record<string, { id: string; name: string; email: string }[]> = {};
+  for (const link of parentLinks ?? []) {
+    if (!parentsByCamper[link.camper_id]) parentsByCamper[link.camper_id] = [];
+    if (link.parent) parentsByCamper[link.camper_id].push(link.parent as any);
+  }
 
   // Normalize: Supabase returns medical_info as array when joined (take first element)
   const normalized = (campers ?? []).map((c: any) => ({
     ...c,
     medical_info: Array.isArray(c.medical_info) ? c.medical_info[0] ?? null : c.medical_info,
     medications: c.medications ?? [],
+    parents: parentsByCamper[c.id] ?? [],
   }));
 
   return (
