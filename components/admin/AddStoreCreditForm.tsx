@@ -60,7 +60,7 @@ export default function AddStoreCreditForm({ camperId, currentBalance, onSuccess
                 value={amount}
                 onChange={e => { setAmount(e.target.value); setError(""); }}
                 placeholder="0.00"
-                className="w-full border border-gray-300 rounded-lg pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
+                className="w-full border border-gray-300 rounded-lg pl-7 pr-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
                 autoFocus
               />
             </div>
@@ -69,7 +69,7 @@ export default function AddStoreCreditForm({ camperId, currentBalance, onSuccess
               value={note}
               onChange={e => setNote(e.target.value)}
               placeholder="Note (optional)"
-              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
+              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
             />
           </div>
           {error && <p className="text-red-500 text-xs">{error}</p>}
