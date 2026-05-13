@@ -5,6 +5,8 @@ import Link from "next/link";
 import { formatDate } from "@/lib/utils";
 import CamperFinanceSection from "@/components/admin/CamperFinanceSection";
 import MedicalInfoForm from "@/components/MedicalInfoForm";
+import StaffAccountLink from "@/components/admin/StaffAccountLink";
+import ParentContactCard from "@/components/admin/ParentContactCard";
 
 export default async function AdminCamperDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -29,6 +31,7 @@ export default async function AdminCamperDetailPage({ params }: { params: Promis
     { data: medicalInfo },
     { data: medications },
     { data: parentLinks },
+    { data: staffUsers },
   ] = await Promise.all([
     supabase.from("tuition_payments").select("*").eq("camper_id", id).order("paid_at", { ascending: false }),
     supabase.from("store_transactions").select("*").eq("camper_id", id).order("created_at", { ascending: false }),
@@ -39,6 +42,10 @@ export default async function AdminCamperDetailPage({ params }: { params: Promis
       .select("*, parent:users(id, name, email)")
       .eq("camper_id", id)
       .eq("approved", true),
+    // Only fetch staff users if this is a staff camper
+    camper.is_staff
+      ? supabase.from("users").select("id, name, email").eq("role", "staff").order("name")
+      : Promise.resolve({ data: [] }),
   ]);
 
   return (
@@ -87,42 +94,26 @@ export default async function AdminCamperDetailPage({ params }: { params: Promis
 
         </div>
 
-        {/* Parents */}
-        <div className="bg-white rounded-2xl shadow p-5">
-          <h2 className="font-semibold text-jubilee-navy mb-3">Parent / Contact</h2>
-          <div className="space-y-3">
-            {/* Linked app accounts */}
-            {parentLinks && parentLinks.length > 0 && (
-              <div className="space-y-2">
-                {parentLinks.map((l: any) => (
-                  <div key={l.id} className="flex items-center gap-3 py-1.5">
-                    <div className="w-7 h-7 rounded-full bg-jubilee-green/10 flex items-center justify-center text-sm">✓</div>
-                    <div>
-                      <p className="text-sm font-medium">{l.parent?.name}</p>
-                      <p className="text-xs text-gray-400">{l.parent?.email} <span className="text-jubilee-green font-medium">· App linked</span></p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+        {/* Parent / Contact — editable */}
+        <ParentContactCard
+          camperId={camper.id}
+          parentEmail={(camper as any).parent_email ?? null}
+          parentName={(camper as any).parent_name ?? null}
+          parentLinks={parentLinks ?? []}
+        />
 
-            {/* CSV-imported parent email (shown when no linked account or different from linked) */}
-            {(camper as any).parent_email && !(parentLinks ?? []).some((l: any) => l.parent?.email === (camper as any).parent_email) && (
-              <div className="flex items-center gap-3 py-1.5">
-                <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-sm">✉️</div>
-                <div>
-                  <p className="text-sm font-medium">{(camper as any).parent_name || "Parent"}</p>
-                  <p className="text-xs text-gray-400">{(camper as any).parent_email} <span className="text-amber-500 font-medium">· Invite sent, not yet linked</span></p>
-                </div>
-              </div>
-            )}
-
-            {/* No contact info at all */}
-            {!(parentLinks?.length) && !(camper as any).parent_email && (
-              <p className="text-sm text-gray-400">No parent contact on file.</p>
-            )}
+        {/* Staff account link — only shown for staff campers */}
+        {camper.is_staff && (
+          <div className="bg-white rounded-2xl shadow p-5">
+            <h2 className="font-semibold text-jubilee-navy mb-1">Staff Portal Account</h2>
+            <p className="text-xs text-gray-400 mb-4">Link a staff user account so this person can log in to the portal.</p>
+            <StaffAccountLink
+              camperId={camper.id}
+              currentUserId={(camper as any).user_id ?? null}
+              staffUsers={staffUsers ?? []}
+            />
           </div>
-        </div>
+        )}
 
         <CamperFinanceSection
           camperId={camper.id}

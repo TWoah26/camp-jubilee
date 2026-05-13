@@ -11,6 +11,9 @@ export default async function PhotosPage() {
   const { data: profile } = await supabase.from("users").select("*").eq("id", user.id).single();
   if (!profile) redirect("/login");
 
+  // Staff members can see all photos
+  const isStaffUser = profile.role === "staff";
+
   // Get parent's linked campers with their session info
   const { data: links } = await supabase
     .from("parent_camper_links")
@@ -20,7 +23,7 @@ export default async function PhotosPage() {
 
   const campers = (links ?? []).map((l: any) => l.camper).filter(Boolean);
 
-  const isStaffParent = campers.some((c: any) => c.is_staff);
+  const isStaffParent = isStaffUser || campers.some((c: any) => c.is_staff);
   const sessionIds = [...new Set(
     campers.filter((c: any) => c.session_id).map((c: any) => c.session_id)
   )] as string[];

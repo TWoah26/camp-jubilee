@@ -19,6 +19,7 @@ export default async function DashboardPage() {
   if (profile.role === "nurse") redirect("/admin/medical");
   if (profile.role === "media") redirect("/admin/photos");
   if (profile.role === "store") redirect("/admin/store");
+  if (profile.role === "staff") redirect("/staff");
 
   const { data: links } = await supabase
     .from("parent_camper_links")

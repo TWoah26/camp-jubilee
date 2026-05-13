@@ -27,7 +27,6 @@ export default async function AdminMedicalPage() {
         ),
         medications(id, name, dose, frequency, instructions, time_of_day)
       `)
-      .eq("is_staff", false)
       .order("last_name"),
     supabase
       .from("sessions")

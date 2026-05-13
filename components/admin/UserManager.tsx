@@ -16,10 +16,11 @@ interface UserManagerProps {
   currentUserId: string;
 }
 
-const ALL_ROLES: UserRole[] = ["parent", "director", "administrator", "nurse", "media", "store"];
+const ALL_ROLES: UserRole[] = ["parent", "staff", "director", "administrator", "nurse", "media", "store"];
 
 const ROLE_LABELS: Record<UserRole, string> = {
   parent: "Parent",
+  staff: "Staff",
   director: "Director",
   administrator: "Administrator",
   nurse: "Nurse",
@@ -29,6 +30,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
 
 const ROLE_COLORS: Record<UserRole, string> = {
   parent: "bg-blue-100 text-blue-800",
+  staff: "bg-jubilee-gold/20 text-jubilee-brown",
   director: "bg-jubilee-navy/10 text-jubilee-navy",
   administrator: "bg-jubilee-gold/20 text-jubilee-brown",
   nurse: "bg-green-100 text-green-800",

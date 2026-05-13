@@ -51,6 +51,13 @@ const storeLinks = [
   { href: "/admin/store", label: "Camp Store", icon: "🛍️" },
 ];
 
+const staffLinks = [
+  { href: "/staff", label: "Home", icon: "🏠" },
+  { href: "/staff/store", label: "My Store", icon: "🛍️" },
+  { href: "/photos", label: "Photos", icon: "📸" },
+  { href: "/info", label: "Info", icon: "ℹ️" },
+];
+
 export default function NavBar({ role, userName, sessions = [], currentSessionId = null }: NavBarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -60,6 +67,7 @@ export default function NavBar({ role, userName, sessions = [], currentSessionId
     : role === "nurse" ? nurseLinks
     : role === "media" ? mediaLinks
     : role === "store" ? storeLinks
+    : role === "staff" ? staffLinks
     : role === "parent" ? parentLinks
     : [];
 

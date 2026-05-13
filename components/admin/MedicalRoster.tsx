@@ -254,13 +254,15 @@ export default function MedicalRoster({ campers, sessions }: Props) {
   const [sessionFilter, setSessionFilter] = useState("all");
   const [alertsOnly, setAlertsOnly] = useState(false);
   const [timeFilter, setTimeFilter] = useState("all");
+  const [showStaff, setShowStaff] = useState(false);
 
-  const filtered = campers.filter(c => {
+  const visibleCampers = campers.filter(c => showStaff ? c.is_staff : !c.is_staff);
+
+  const filtered = visibleCampers.filter(c => {
     const name = `${c.first_name} ${c.last_name}`.toLowerCase();
     if (search && !name.includes(search.toLowerCase())) return false;
     if (sessionFilter !== "all" && c.session_id !== sessionFilter) return false;
     if (alertsOnly && !hasAlerts(c)) return false;
-    // Time filter: only show campers who have at least one med at that time
     if (timeFilter !== "all") {
       const hasMedAtTime = (c.medications ?? []).some(m => (m.time_of_day ?? []).includes(timeFilter));
       if (!hasMedAtTime) return false;
@@ -268,16 +270,35 @@ export default function MedicalRoster({ campers, sessions }: Props) {
     return true;
   });
 
-  const alertCount = campers.filter(hasAlerts).length;
-  const noInfoCount = campers.filter(c => !c.medical_info).length;
+  const alertCount = visibleCampers.filter(hasAlerts).length;
+  const noInfoCount = visibleCampers.filter(c => !c.medical_info).length;
+  const staffCount = campers.filter(c => c.is_staff).length;
 
   return (
     <div className="space-y-4">
+      {/* Campers / Staff toggle */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setShowStaff(false)}
+          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${!showStaff ? "bg-jubilee-navy text-white" : "bg-white border border-gray-200 text-gray-600"}`}
+        >
+          🧒 Campers ({campers.filter(c => !c.is_staff).length})
+        </button>
+        {staffCount > 0 && (
+          <button
+            onClick={() => setShowStaff(true)}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${showStaff ? "bg-jubilee-gold text-white" : "bg-white border border-gray-200 text-gray-600"}`}
+          >
+            👷 Staff ({staffCount})
+          </button>
+        )}
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-white rounded-xl shadow p-4 text-center">
-          <p className="text-2xl font-bold text-jubilee-navy">{campers.length}</p>
-          <p className="text-xs text-gray-500 mt-0.5">Total Campers</p>
+          <p className="text-2xl font-bold text-jubilee-navy">{visibleCampers.length}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{showStaff ? "Staff" : "Campers"}</p>
         </div>
         <div className="bg-white rounded-xl shadow p-4 text-center">
           <p className="text-2xl font-bold text-red-500">{alertCount}</p>
@@ -349,7 +370,7 @@ export default function MedicalRoster({ campers, sessions }: Props) {
         </button>
       </div>
 
-      <p className="text-sm text-gray-500">{filtered.length} camper{filtered.length !== 1 ? "s" : ""}{timeFilter !== "all" ? ` need medication at ${TIME_OPTIONS.find(t => t.value === timeFilter)?.label.replace(/.*? /, "")}` : ""}</p>
+      <p className="text-sm text-gray-500">{filtered.length} {showStaff ? "staff member" : "camper"}{filtered.length !== 1 ? "s" : ""}{timeFilter !== "all" ? ` need medication at ${TIME_OPTIONS.find(t => t.value === timeFilter)?.label.replace(/.*? /, "")}` : ""}</p>
 
       {filtered.length === 0 ? (
         <div className="bg-white rounded-2xl shadow p-12 text-center text-gray-400">
