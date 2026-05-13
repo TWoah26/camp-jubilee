@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import type { UserRole } from "@/types";
 
@@ -31,7 +31,8 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
 
-    const { error } = await supabase
+    const admin = await createAdminClient();
+    const { error } = await admin
       .from("users")
       .update({ role })
       .eq("id", user_id);
@@ -64,7 +65,8 @@ export async function DELETE(req: Request) {
     if (!user_id) return NextResponse.json({ error: "Missing user_id" }, { status: 400 });
     if (user_id === user.id) return NextResponse.json({ error: "Cannot delete yourself" }, { status: 400 });
 
-    const { error } = await supabase.from("users").delete().eq("id", user_id);
+    const admin = await createAdminClient();
+    const { error } = await admin.from("users").delete().eq("id", user_id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     return NextResponse.json({ success: true });
