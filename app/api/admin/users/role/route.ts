@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import type { UserRole } from "@/types";
 
-const VALID_ROLES: UserRole[] = ["parent", "director", "administrator", "nurse", "media", "store"];
+const VALID_ROLES: UserRole[] = ["parent", "staff", "director", "administrator", "nurse", "media", "store"];
 
 export async function PATCH(req: Request) {
   try {
