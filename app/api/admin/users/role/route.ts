@@ -39,6 +39,50 @@ export async function PATCH(req: Request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+    // If promoting to staff, auto-create + link a camper record if one doesn't exist
+    if (role === "staff") {
+      const { data: existingCamper } = await admin
+        .from("campers")
+        .select("id")
+        .eq("user_id", user_id)
+        .maybeSingle();
+
+      if (!existingCamper) {
+        // Get their name from the users table
+        const { data: targetUser } = await admin
+          .from("users")
+          .select("name, email")
+          .eq("id", user_id)
+          .single();
+
+        const nameParts = (targetUser?.name || targetUser?.email || "Staff").trim().split(" ");
+        const firstName = nameParts[0] ?? "Staff";
+        const lastName = nameParts.slice(1).join(" ") || "";
+
+        // Generate unique camper code
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        let camperCode = "";
+        for (let i = 0; i < 8; i++) camperCode += chars.charAt(Math.floor(Math.random() * chars.length));
+
+        // Get active session (optional — staff may not be tied to one session)
+        const { data: activeSession } = await admin
+          .from("sessions")
+          .select("id")
+          .eq("is_active", true)
+          .maybeSingle();
+
+        await admin.from("campers").insert({
+          first_name: firstName,
+          last_name: lastName,
+          is_staff: true,
+          user_id,
+          store_balance: 0,
+          camper_code: camperCode,
+          session_id: activeSession?.id ?? null,
+        });
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
