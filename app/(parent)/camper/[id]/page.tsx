@@ -185,7 +185,7 @@ export default async function CamperDetailPage({ params }: { params: Promise<{ i
               {transactions.map((tx: any) => (
                 <div key={tx.id} className="flex items-center justify-between py-2 border-b last:border-0">
                   <div>
-                    <p className="text-sm font-medium">{tx.note || (tx.type === "credit" ? "Funds added" : "Purchase")}</p>
+                    <p className="text-sm font-medium">{tx.type === "credit" ? "Funds added" : "Purchase"}</p>
                     <p className="text-xs text-gray-400">{formatDate(tx.created_at)}</p>
                   </div>
                   <span className={`font-semibold text-sm ${tx.type === "credit" ? "text-jubilee-green" : "text-red-500"}`}>

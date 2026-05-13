@@ -16,8 +16,9 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Camper | null>(null);
   const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
   const [processing, setProcessing] = useState(false);
-  const [lastReceipt, setLastReceipt] = useState<{ name: string; amount: number; balance: number } | null>(null);
+  const [lastReceipt, setLastReceipt] = useState<{ name: string; amount: number; balance: number; note: string } | null>(null);
   const [error, setError] = useState("");
 
   // Quick amounts
@@ -45,6 +46,7 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
   const selectCamper = (c: Camper) => {
     setSelected(c);
     setAmount("");
+    setNote("");
     setError("");
     setLastReceipt(null);
   };
@@ -60,7 +62,7 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
     const res = await fetch("/api/admin/store/purchase", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ camper_id: selected.id, amount: amt }),
+      body: JSON.stringify({ camper_id: selected.id, amount: amt, note }),
     });
     const data = await res.json();
     setProcessing(false);
@@ -69,8 +71,9 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
 
     setCampers(prev => prev.map(c => c.id === selected.id ? { ...c, store_balance: data.new_balance } : c));
     setSelected({ ...selected, store_balance: data.new_balance });
-    setLastReceipt({ name: `${selected.first_name} ${selected.last_name}`, amount: amt, balance: data.new_balance });
+    setLastReceipt({ name: `${selected.first_name} ${selected.last_name}`, amount: amt, balance: data.new_balance, note });
     setAmount("");
+    setNote("");
   };
 
   const openEdit = () => {
@@ -140,9 +143,9 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
       {/* Right: purchase panel */}
       {selected && (
         <div className="w-full lg:w-80 shrink-0">
-          <div className="bg-white rounded-2xl shadow sticky top-4 overflow-hidden">
+          <div className="bg-white rounded-2xl shadow sticky top-4">
             {/* Header */}
-            <div className="bg-jubilee-navy text-white px-5 py-4 flex items-center justify-between">
+            <div className="bg-jubilee-navy text-white px-5 py-4 rounded-t-2xl flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full shrink-0 overflow-hidden bg-white/20 flex items-center justify-center text-white font-bold">
                   {selected.photo_url
@@ -157,7 +160,7 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
               <button onClick={() => setSelected(null)} className="text-white/50 hover:text-white text-lg">✕</button>
             </div>
 
-            <div className="p-5 space-y-5">
+            <div className="p-5 space-y-4">
               {/* Balance */}
               <div className="text-center py-3 bg-gray-50 rounded-xl">
                 <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Store Balance</p>
@@ -170,14 +173,15 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
               {lastReceipt && (
                 <div className="bg-jubilee-green/10 border border-jubilee-green/20 rounded-xl p-3 text-center">
                   <p className="text-jubilee-green font-semibold text-sm">✓ Purchase complete!</p>
+                  {lastReceipt.note && <p className="text-xs text-gray-500 mt-0.5 italic">{lastReceipt.note}</p>}
                   <p className="text-sm text-gray-600 mt-1">{formatCurrency(lastReceipt.amount)} charged</p>
                   <p className="text-xs text-gray-400">New balance: {formatCurrency(lastReceipt.balance)}</p>
                 </div>
               )}
 
-              {/* Amount input */}
               {selected.store_balance > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  {/* Amount */}
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1.5">Purchase Amount</label>
                     <div className="relative">
@@ -190,10 +194,22 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
                         value={amount}
                         onChange={e => { setAmount(e.target.value); setError(""); }}
                         placeholder="0.00"
-                        className="w-full border border-gray-300 rounded-xl pl-7 pr-3 py-3 text-lg font-bold focus:outline-none focus:ring-2 focus:ring-jubilee-gold text-center"
+                        className="w-full border border-gray-300 rounded-xl pl-7 pr-3 py-3 text-lg font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-jubilee-gold text-center"
                       />
                     </div>
                     {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+                  </div>
+
+                  {/* Note / Item */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Item / Note</label>
+                    <input
+                      type="text"
+                      value={note}
+                      onChange={e => setNote(e.target.value)}
+                      placeholder="e.g. T-shirt, snack, etc."
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
+                    />
                   </div>
 
                   {/* Quick amounts */}

@@ -63,7 +63,7 @@ export default async function StaffStorePage() {
                   {transactions.map((tx: any) => (
                     <div key={tx.id} className="flex justify-between items-center py-2 border-b last:border-0 text-sm">
                       <div>
-                        <p className="font-medium">{tx.note || (tx.type === "credit" ? "Funds added" : "Purchase")}</p>
+                        <p className="font-medium">{tx.type === "credit" ? "Funds added" : "Purchase"}</p>
                         <p className="text-xs text-gray-400">{formatDateTime(tx.created_at)}</p>
                       </div>
                       <span className={`font-semibold ${tx.type === "credit" ? "text-jubilee-green" : "text-red-500"}`}>
