@@ -11,34 +11,36 @@ export default function RecoveryPage() {
 
   useEffect(() => {
     const supabase = createClient();
-    const code = searchParams.get("code");
 
-    if (code) {
-      // PKCE flow — code in query param
-      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-        if (error) {
-          setStatus("error");
-        } else {
-          router.replace("/reset-password");
+    async function handleRecovery() {
+      // --- Case 1: PKCE flow — ?code=xxx in query string ---
+      const code = searchParams.get("code");
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (!error) { router.replace("/reset-password"); return; }
+        setStatus("error");
+        return;
+      }
+
+      // --- Case 2: Implicit / hash flow — #access_token=xxx in URL fragment ---
+      const hash = window.location.hash;
+      if (hash) {
+        const params = new URLSearchParams(hash.replace("#", ""));
+        const accessToken = params.get("access_token");
+        const refreshToken = params.get("refresh_token") ?? "";
+        const type = params.get("type");
+
+        if (accessToken && type === "recovery") {
+          const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          if (!error) { router.replace("/reset-password"); return; }
         }
-      });
-    } else {
-      // Implicit / hash flow — token is in the URL fragment (#access_token=...)
-      // The Supabase client auto-detects the hash and fires onAuthStateChange
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-        if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
-          router.replace("/reset-password");
-        }
-      });
+      }
 
-      // Fallback: if nothing fires within 8 seconds, show error
-      const timeout = setTimeout(() => setStatus("error"), 8000);
-
-      return () => {
-        subscription.unsubscribe();
-        clearTimeout(timeout);
-      };
+      // --- Nothing worked ---
+      setStatus("error");
     }
+
+    handleRecovery();
   }, []);
 
   if (status === "error") {
