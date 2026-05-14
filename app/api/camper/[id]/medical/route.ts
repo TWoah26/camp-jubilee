@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -26,8 +26,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     const { medical, medications } = await req.json();
 
+    // Use admin client for writes to bypass RLS
+    const admin = await createAdminClient();
+
     // Upsert medical_info
-    const { error: medError } = await supabase
+    const { error: medError } = await admin
       .from("medical_info")
       .upsert({
         camper_id,
@@ -38,7 +41,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (medError) return NextResponse.json({ error: medError.message }, { status: 500 });
 
     // Replace medications: delete all then re-insert
-    await supabase.from("medications").delete().eq("camper_id", camper_id);
+    await admin.from("medications").delete().eq("camper_id", camper_id);
 
     if (medications && medications.length > 0) {
       const rows = medications
@@ -46,7 +49,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         .map((m: any) => ({ camper_id, name: m.name, dose: m.dose, frequency: m.frequency, instructions: m.instructions, time_of_day: m.time_of_day ?? [] }));
 
       if (rows.length > 0) {
-        const { error: rxError } = await supabase.from("medications").insert(rows);
+        const { error: rxError } = await admin.from("medications").insert(rows);
         if (rxError) return NextResponse.json({ error: rxError.message }, { status: 500 });
       }
     }

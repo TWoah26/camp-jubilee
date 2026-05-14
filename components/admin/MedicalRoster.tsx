@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import MedicalInfoForm from "@/components/MedicalInfoForm";
 
 type Medication = { id: string; name: string; dose: string; frequency: string; instructions: string; time_of_day?: string[] };
 
@@ -62,6 +63,7 @@ function Pill({ label, color }: { label: string; color: string }) {
 
 function CamperCard({ camper, timeFilter }: { camper: Camper; timeFilter: string }) {
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const m = camper.medical_info;
   const allMeds = camper.medications ?? [];
   // When a time filter is active, only show meds matching that time
@@ -240,8 +242,46 @@ function CamperCard({ camper, timeFilter }: { camper: Camper; timeFilter: string
             </div>
           )}
 
-          {m?.updated_at && (
+          {m?.updated_at && !editing && (
             <p className="text-xs text-gray-300 text-right">Last updated {new Date(m.updated_at).toLocaleDateString()}</p>
+          )}
+
+          {/* Edit section */}
+          {editing ? (
+            <div className="border-t border-gray-100 pt-4">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-semibold text-jubilee-navy">Editing Medical Info</p>
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  className="text-sm text-gray-400 hover:text-gray-600"
+                >
+                  ✕ Cancel
+                </button>
+              </div>
+              <MedicalInfoForm
+                camperId={camper.id}
+                camperName={`${camper.first_name} ${camper.last_name}`}
+                initialMedical={camper.medical_info ?? {}}
+                initialMedications={(camper.medications ?? []).map(m => ({
+                  name: m.name,
+                  dose: m.dose ?? "",
+                  frequency: m.frequency ?? "",
+                  instructions: m.instructions ?? "",
+                  time_of_day: m.time_of_day ?? [],
+                }))}
+              />
+            </div>
+          ) : (
+            <div className="border-t border-gray-100 pt-3">
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="text-sm text-jubilee-navy hover:text-jubilee-gold font-medium"
+              >
+                ✏️ Edit Medical Info
+              </button>
+            </div>
           )}
         </div>
       )}
