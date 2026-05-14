@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,23 +21,51 @@ export default function ResetPasswordPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.email) setEmail(data.user.email);
+    });
+  }, []);
+
   const onSubmit = async (data: FormData) => {
     setLoading(true);
     setError(null);
-    const supabase = await createClient();
+    const supabase = createClient();
     const { error } = await supabase.auth.updateUser({ password: data.password });
+    setLoading(false);
     if (error) {
       setError(error.message);
-      setLoading(false);
     } else {
-      router.push("/dashboard");
+      setDone(true);
+      setTimeout(() => router.push("/dashboard"), 2000);
     }
   };
+
+  if (done) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-jubilee-cream p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="font-display font-black text-3xl"><span className="text-jubilee-gold">camp</span> <span className="text-jubilee-navy">jubilee</span></div>
+            <p className="text-jubilee-navy/50 text-xs tracking-widest uppercase mt-1">Rest. Restore. Rejoice.</p>
+          </div>
+          <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+            <div className="text-4xl mb-3">✅</div>
+            <h2 className="text-xl font-semibold text-jubilee-navy mb-2">Password updated!</h2>
+            <p className="text-gray-500 text-sm">Taking you to your dashboard…</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-jubilee-cream p-4">
@@ -47,7 +75,10 @@ export default function ResetPasswordPage() {
           <p className="text-jubilee-navy/50 text-xs tracking-widest uppercase mt-1">Rest. Restore. Rejoice.</p>
         </div>
         <div className="bg-white rounded-2xl shadow-lg p-8">
-          <h2 className="text-xl font-semibold text-jubilee-navy mb-6">Set New Password</h2>
+          <h2 className="text-xl font-semibold text-jubilee-navy mb-1">Set New Password</h2>
+          {email && (
+            <p className="text-sm text-gray-500 mb-6">Resetting password for <span className="font-medium text-jubilee-navy">{email}</span></p>
+          )}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
@@ -73,7 +104,7 @@ export default function ResetPasswordPage() {
               disabled={loading}
               className="w-full bg-jubilee-navy text-white py-2.5 rounded-lg font-medium hover:bg-jubilee-gold transition-colors disabled:opacity-50"
             >
-              {loading ? "Updating..." : "Update Password"}
+              {loading ? "Updating…" : "Update Password"}
             </button>
           </form>
         </div>
