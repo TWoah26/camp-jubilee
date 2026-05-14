@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export default function RecoveryPage() {
+function RecoveryInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "error">("loading");
@@ -36,7 +36,6 @@ export default function RecoveryPage() {
         }
       }
 
-      // --- Nothing worked ---
       setStatus("error");
     }
 
@@ -69,5 +68,13 @@ export default function RecoveryPage() {
         <p className="text-gray-400 text-sm mt-1">You'll be redirected in a moment.</p>
       </div>
     </div>
+  );
+}
+
+export default function RecoveryPage() {
+  return (
+    <Suspense>
+      <RecoveryInner />
+    </Suspense>
   );
 }
