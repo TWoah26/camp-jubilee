@@ -41,6 +41,7 @@ interface Props {
   sessionId: string;
   sessionName: string;
   sessionTuitionAmount: number;
+  role: string;
 }
 
 function StatusBadge({ record }: { record: CheckinRecord | null }) {
@@ -53,7 +54,8 @@ function StatusBadge({ record }: { record: CheckinRecord | null }) {
   return <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-jubilee-green/20 text-jubilee-green font-medium">✓ Checked in</span>;
 }
 
-export default function CheckInRoster({ campers, sessionId, sessionName, sessionTuitionAmount }: Props) {
+export default function CheckInRoster({ campers, sessionId, sessionName, sessionTuitionAmount, role }: Props) {
+  const showFinances = role === "director" || role === "administrator";
   const [search, setSearch] = useState("");
   const [cabinFilter, setCabinFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "checked_in" | "picked_up">("all");
@@ -211,7 +213,7 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-jubilee-navy truncate">{camper.first_name} {camper.last_name}</p>
                   <p className="text-xs text-gray-400">{camper.cabin ?? "No cabin"}{camper.counselor_name ? ` · ${camper.counselor_name}` : ""}</p>
-                  {balanceDue > 0 && (
+                  {showFinances && balanceDue > 0 && (
                     <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600 font-medium mt-0.5">
                       💰 Balance Due: ${balanceDue.toFixed(2)}
                     </span>
@@ -266,7 +268,7 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
               </div>
 
               {/* Balance due alert */}
-              {(() => {
+              {showFinances && (() => {
                 const effectiveCommitment = selected.tuition_commitment > 0 ? selected.tuition_commitment : sessionTuitionAmount;
                 const balanceDue = effectiveCommitment - selected.tuition_paid;
                 return balanceDue > 0 ? (

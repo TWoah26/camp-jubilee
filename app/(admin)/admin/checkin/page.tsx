@@ -89,7 +89,7 @@ export default async function AdminCheckInPage() {
           <h1 className="text-2xl font-bold text-jubilee-green-dark">Check-In</h1>
           <p className="text-gray-500 text-sm mt-1">{session.name} — {normalized.length} camper{normalized.length !== 1 ? "s" : ""} registered</p>
         </div>
-        <CheckInRoster campers={normalized} sessionId={sessionId} sessionName={session.name} sessionTuitionAmount={sessionTuitionAmount} />
+        <CheckInRoster campers={normalized} sessionId={sessionId} sessionName={session.name} sessionTuitionAmount={sessionTuitionAmount} role={profile.role} />
       </div>
     </AppShell>
   );
