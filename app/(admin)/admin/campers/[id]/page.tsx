@@ -4,6 +4,7 @@ import AppShell from "@/components/AppShell";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
 import CamperFinanceSection from "@/components/admin/CamperFinanceSection";
+import CamperInfoCard from "@/components/admin/CamperInfoCard";
 import MedicalInfoForm from "@/components/MedicalInfoForm";
 import StaffAccountLink from "@/components/admin/StaffAccountLink";
 import ParentContactCard from "@/components/admin/ParentContactCard";
@@ -75,23 +76,15 @@ export default async function AdminCamperDetailPage({ params }: { params: Promis
 
         {/* Info grid */}
         <div className="grid sm:grid-cols-2 gap-4">
-          {/* Camper details */}
-          <div className="bg-white rounded-2xl shadow p-5">
-            <h2 className="font-semibold text-jubilee-navy mb-3">Camper Info</h2>
-            <dl className="space-y-2 text-sm">
-              {camper.dob && (
-                <div className="flex justify-between"><dt className="text-gray-500">Date of Birth</dt><dd className="font-medium">{formatDate(camper.dob)}</dd></div>
-              )}
-              {camper.cabin && (
-                <div className="flex justify-between"><dt className="text-gray-500">Cabin</dt><dd className="font-medium">{camper.cabin}</dd></div>
-              )}
-              {camper.counselor_name && (
-                <div className="flex justify-between"><dt className="text-gray-500">Counselor</dt><dd className="font-medium">{camper.counselor_name}</dd></div>
-              )}
-              <div className="flex justify-between"><dt className="text-gray-500">Camper Code</dt><dd className="font-mono text-xs text-gray-600">{camper.camper_code}</dd></div>
-            </dl>
-          </div>
-
+          <CamperInfoCard
+            camperId={camper.id}
+            firstName={camper.first_name}
+            lastName={camper.last_name}
+            dob={camper.dob ?? null}
+            cabin={camper.cabin ?? null}
+            counselorName={camper.counselor_name ?? null}
+            camperCode={camper.camper_code}
+          />
         </div>
 
         {/* Parent / Contact — editable */}
