@@ -84,6 +84,7 @@ export default async function AdminCamperDetailPage({ params }: { params: Promis
             cabin={camper.cabin ?? null}
             counselorName={camper.counselor_name ?? null}
             camperCode={camper.camper_code}
+            registrationNotes={(camper as any).registration_notes ?? null}
           />
         </div>
 

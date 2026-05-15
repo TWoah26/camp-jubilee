@@ -13,7 +13,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { first_name, last_name, dob, cabin, counselor_name } = await req.json();
+    const { first_name, last_name, dob, cabin, counselor_name, registration_notes } = await req.json();
 
     const admin = await createAdminClient();
     const { error } = await admin
@@ -24,6 +24,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         dob: dob || null,
         cabin: cabin?.trim() || null,
         counselor_name: counselor_name?.trim() || null,
+        registration_notes: registration_notes?.trim() || null,
       })
       .eq("id", id);
 

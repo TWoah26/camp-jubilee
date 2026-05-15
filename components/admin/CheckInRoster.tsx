@@ -34,6 +34,7 @@ type Camper = {
   medications: any[];
   tuition_commitment: number;
   tuition_paid: number;
+  registration_notes: string | null;
 };
 
 interface Props {
@@ -266,6 +267,14 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
                   </p>
                 )}
               </div>
+
+              {/* Registration notes */}
+              {selected.registration_notes && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">📋 Registration Notes</p>
+                  <p className="text-sm text-amber-800">{selected.registration_notes}</p>
+                </div>
+              )}
 
               {/* Balance due alert */}
               {showFinances && (() => {

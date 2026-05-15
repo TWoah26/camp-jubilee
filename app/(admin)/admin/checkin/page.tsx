@@ -44,7 +44,7 @@ export default async function AdminCheckInPage() {
       .from("campers")
       .select(`
         id, first_name, last_name, cabin, counselor_name, photo_url, is_staff, session_id,
-        tuition_commitment,
+        tuition_commitment, registration_notes,
         medical_info(
           food_allergies, medication_allergies, environmental_allergies,
           conditions, insurance_provider, insurance_policy_number,

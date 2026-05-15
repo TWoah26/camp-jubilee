@@ -11,9 +11,10 @@ interface Props {
   cabin: string | null;
   counselorName: string | null;
   camperCode: string;
+  registrationNotes: string | null;
 }
 
-export default function CamperInfoCard({ camperId, firstName, lastName, dob, cabin, counselorName, camperCode }: Props) {
+export default function CamperInfoCard({ camperId, firstName, lastName, dob, cabin, counselorName, camperCode, registrationNotes }: Props) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -25,9 +26,10 @@ export default function CamperInfoCard({ camperId, firstName, lastName, dob, cab
     dob: dob ?? "",
     cabin: cabin ?? "",
     counselor_name: counselorName ?? "",
+    registration_notes: registrationNotes ?? "",
   });
 
-  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(f => ({ ...f, [key]: e.target.value }));
 
   const handleSave = async () => {
@@ -77,6 +79,17 @@ export default function CamperInfoCard({ camperId, firstName, lastName, dob, cab
             <input value={form.counselor_name} onChange={set("counselor_name")} placeholder="e.g. Jake" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-jubilee-gold" />
           </div>
           <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Registration Notes</label>
+            <textarea
+              value={form.registration_notes}
+              onChange={set("registration_notes")}
+              placeholder="e.g. Arriving late Friday, needs wheelchair access, pick-up authorized by aunt only…"
+              rows={3}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-jubilee-gold resize-none"
+            />
+            <p className="text-xs text-gray-400 mt-1">Visible to staff in the Check-In tab.</p>
+          </div>
+          <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Camper Code</label>
             <p className="font-mono text-xs text-gray-400 px-3 py-2">{camperCode}</p>
           </div>
@@ -101,14 +114,19 @@ export default function CamperInfoCard({ camperId, firstName, lastName, dob, cab
       </div>
       <dl className="space-y-2 text-sm">
         {dob && <div className="flex justify-between"><dt className="text-gray-500">Date of Birth</dt><dd className="font-medium">{formatDate(dob)}</dd></div>}
-        {form.cabin ? (
-          <div className="flex justify-between"><dt className="text-gray-500">Cabin</dt><dd className="font-medium">{form.cabin}</dd></div>
-        ) : (
-          <div className="flex justify-between"><dt className="text-gray-500">Cabin</dt><dd className="text-gray-400 italic">Not assigned</dd></div>
-        )}
+        <div className="flex justify-between">
+          <dt className="text-gray-500">Cabin</dt>
+          <dd className={form.cabin ? "font-medium" : "text-gray-400 italic"}>{form.cabin || "Not assigned"}</dd>
+        </div>
         {form.counselor_name && <div className="flex justify-between"><dt className="text-gray-500">Counselor</dt><dd className="font-medium">{form.counselor_name}</dd></div>}
         <div className="flex justify-between"><dt className="text-gray-500">Camper Code</dt><dd className="font-mono text-xs text-gray-600">{camperCode}</dd></div>
       </dl>
+      {form.registration_notes && (
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <p className="text-xs font-medium text-gray-500 mb-1">📋 Registration Notes</p>
+          <p className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">{form.registration_notes}</p>
+        </div>
+      )}
       {saved && <p className="text-jubilee-green text-xs mt-2 font-medium">✓ Saved!</p>}
     </div>
   );
