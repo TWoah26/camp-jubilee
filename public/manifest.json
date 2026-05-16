@@ -4,8 +4,8 @@
   "description": "Camp Jubilee Parent Portal",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FDF6EC",
-  "theme_color": "#2D6A4F",
+  "background_color": "#fff6e8",
+  "theme_color": "#3a4755",
   "orientation": "portrait",
   "icons": [
     {

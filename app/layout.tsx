@@ -21,6 +21,11 @@ export const metadata: Metadata = {
   description: "Camp Jubilee Parent Portal — Rest. Restore. Rejoice.",
   manifest: "/manifest.json",
   themeColor: "#3a4755",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Camp Jubilee",
+  },
 };
 
 export default function RootLayout({
