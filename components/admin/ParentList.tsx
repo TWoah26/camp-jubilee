@@ -131,6 +131,19 @@ export default function ParentList({ campers, links, parents, selectedSessionId 
     window.location.reload();
   };
 
+  const deleteAccount = async (parentId: string, parentName: string) => {
+    if (!confirm(`Permanently delete ${parentName}'s account from Supabase? This cannot be undone.`)) return;
+    setLoading(`del-${parentId}`);
+    const res = await fetch(`/api/admin/parents/${parentId}`, { method: "DELETE" });
+    setLoading(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(`Delete failed: ${data.error ?? res.status}`);
+      return;
+    }
+    window.location.reload();
+  };
+
   const approveLink = async (linkId: string) => {
     setLoading(linkId);
     await fetch("/api/admin/parents/approve", {
@@ -253,8 +266,13 @@ export default function ParentList({ campers, links, parents, selectedSessionId 
                         <p className="text-xs text-gray-500">{p.name} · <span className="text-jubilee-green font-medium">{p.email}</span></p>
                         <button
                           onClick={() => { const l = approvedLinks.find(lk => lk.camper.id === camper.id && lk.parent.id === p.id); if (l) removeLink(l.id); }}
-                          className="text-xs text-red-400 hover:text-red-600"
-                        >Remove</button>
+                          className="text-xs text-gray-400 hover:text-red-500"
+                        >Unlink</button>
+                        <button
+                          onClick={() => deleteAccount(p.id, p.name)}
+                          disabled={loading === `del-${p.id}`}
+                          className="text-xs text-red-400 hover:text-red-600 font-medium disabled:opacity-50"
+                        >{loading === `del-${p.id}` ? "…" : "Delete account"}</button>
                       </div>
                     ))}
 

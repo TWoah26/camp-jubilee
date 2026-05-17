@@ -23,8 +23,13 @@ export default function ParentContactCard({ camperId, parentEmail, parentName, p
   const deleteAccount = async (parentId: string, parentName: string) => {
     if (!confirm(`Permanently delete ${parentName}'s account? This cannot be undone.`)) return;
     setDeletingId(parentId);
-    await fetch(`/api/admin/parents/${parentId}`, { method: "DELETE" });
+    const res = await fetch(`/api/admin/parents/${parentId}`, { method: "DELETE" });
     setDeletingId(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(`Delete failed: ${data.error ?? res.status}`);
+      return;
+    }
     router.refresh();
   };
 
