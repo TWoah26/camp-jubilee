@@ -44,13 +44,15 @@ export default function WelcomePage() {
     setError(null);
     const supabase = createClient();
     const { error } = await supabase.auth.updateUser({ password: data.password });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       setError(error.message);
-    } else {
-      setDone(true);
-      setTimeout(() => router.push("/dashboard"), 1500);
+      return;
     }
+    await fetch("/api/parent/activate", { method: "POST" });
+    setLoading(false);
+    setDone(true);
+    setTimeout(() => router.push("/dashboard"), 1500);
   };
 
   if (done) {

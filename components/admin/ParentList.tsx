@@ -21,20 +21,29 @@ interface Props {
   links: Link[];
   parents: { id: string; name: string; email: string }[];
   selectedSessionId: string | null;
+  lastSignInMap: Record<string, string | null>;
 }
 
 type Status = "linked" | "pending" | "none";
 
-function statusOf(camper: Camper, linkedCamperIds: Set<string>): Status {
+function statusOf(camper: Camper, linkedCamperIds: Set<string>, invitedCamperIds?: Set<string>): Status {
   if (linkedCamperIds.has(camper.id)) return "linked";
-  if (camper.parent_email) return "pending";
+  if (invitedCamperIds?.has(camper.id) || camper.parent_email) return "pending";
   return "none";
 }
 
-export default function ParentList({ campers, links, parents, selectedSessionId }: Props) {
+function formatLastSeen(iso: string | null | undefined): string {
+  if (!iso) return "Never logged in";
+  const d = new Date(iso);
+  return `Last seen ${d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+}
+
+export default function ParentList({ campers, links, parents, selectedSessionId, lastSignInMap }: Props) {
   const approvedLinks = links.filter(l => l.approved);
   const pendingLinks = links.filter(l => !l.approved);
+  const invitedLinks = pendingLinks; // approved: false means invite sent, not yet accepted
   const linkedCamperIds = new Set(approvedLinks.map(l => l.camper.id));
+  const invitedCamperIds = new Set(invitedLinks.map(l => l.camper.id));
 
   // Map camper_id → linked parent(s)
   const linkedParentsByCamper: Record<string, { id: string; name: string; email: string }[]> = {};
@@ -61,7 +70,7 @@ export default function ParentList({ campers, links, parents, selectedSessionId 
     const email = (c.parent_email ?? "").toLowerCase();
     const pname = (c.parent_name ?? "").toLowerCase();
     if (search && !name.includes(search.toLowerCase()) && !email.includes(search.toLowerCase()) && !pname.includes(search.toLowerCase())) return false;
-    if (filter !== "all" && statusOf(c, linkedCamperIds) !== filter) return false;
+    if (filter !== "all" && statusOf(c, linkedCamperIds, invitedCamperIds) !== filter) return false;
     return true;
   });
 
@@ -246,7 +255,7 @@ export default function ParentList({ campers, links, parents, selectedSessionId 
         {filtered.length === 0 ? (
           <p className="text-center text-gray-400 py-10 text-sm">No campers match your filters.</p>
         ) : filtered.map(camper => {
-          const status = statusOf(camper, linkedCamperIds);
+          const status = statusOf(camper, linkedCamperIds, invitedCamperIds);
           const linkedParents = linkedParentsByCamper[camper.id] ?? [];
           const linkEntry = approvedLinks.find(l => l.camper.id === camper.id);
           const isEditing = editingId === camper.id;
@@ -261,20 +270,27 @@ export default function ParentList({ campers, links, parents, selectedSessionId 
                     <p className="font-semibold text-jubilee-navy text-sm">{camper.first_name} {camper.last_name}</p>
 
                     {/* Linked accounts */}
-                    {linkedParents.map(p => (
-                      <div key={p.id} className="flex items-center gap-2 mt-0.5">
-                        <p className="text-xs text-gray-500">{p.name} · <span className="text-jubilee-green font-medium">{p.email}</span></p>
-                        <button
-                          onClick={() => { const l = approvedLinks.find(lk => lk.camper.id === camper.id && lk.parent.id === p.id); if (l) removeLink(l.id); }}
-                          className="text-xs text-gray-400 hover:text-red-500"
-                        >Unlink</button>
-                        <button
-                          onClick={() => deleteAccount(p.id, p.name)}
-                          disabled={loading === `del-${p.id}`}
-                          className="text-xs text-red-400 hover:text-red-600 font-medium disabled:opacity-50"
-                        >{loading === `del-${p.id}` ? "…" : "Delete account"}</button>
-                      </div>
-                    ))}
+                    {linkedParents.map(p => {
+                      const lastSeen = lastSignInMap[p.id];
+                      const hasLoggedIn = !!lastSeen;
+                      return (
+                        <div key={p.id} className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <p className="text-xs text-gray-500">{p.name} · <span className="text-jubilee-green font-medium">{p.email}</span></p>
+                          <span className={`text-xs font-medium ${hasLoggedIn ? "text-jubilee-green" : "text-amber-500"}`}>
+                            · {formatLastSeen(lastSeen)}
+                          </span>
+                          <button
+                            onClick={() => { const l = approvedLinks.find(lk => lk.camper.id === camper.id && lk.parent.id === p.id); if (l) removeLink(l.id); }}
+                            className="text-xs text-gray-400 hover:text-red-500"
+                          >Unlink</button>
+                          <button
+                            onClick={() => deleteAccount(p.id, p.name)}
+                            disabled={loading === `del-${p.id}`}
+                            className="text-xs text-red-400 hover:text-red-600 font-medium disabled:opacity-50"
+                          >{loading === `del-${p.id}` ? "…" : "Delete account"}</button>
+                        </div>
+                      );
+                    })}
 
                     {/* CSV email (if different from linked) */}
                     {camper.parent_email && !linkedParents.some(p => p.email === camper.parent_email) && !isEditing && (

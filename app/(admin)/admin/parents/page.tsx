@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getAdminSessionId } from "@/lib/admin-session";
 import AppShell from "@/components/AppShell";
 import ParentList from "@/components/admin/ParentList";
@@ -36,6 +36,14 @@ export default async function AdminParentsPage() {
   // All parent users (for manual link dropdown)
   const { data: parents } = await supabase.from("users").select("id, name, email").eq("role", "parent").order("name");
 
+  // Fetch last_sign_in_at for all parents from auth
+  const admin = await createAdminClient();
+  const { data: authUsers } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const lastSignInMap: Record<string, string | null> = {};
+  for (const u of authUsers?.users ?? []) {
+    lastSignInMap[u.id] = u.last_sign_in_at ?? null;
+  }
+
   return (
     <AppShell role={profile.role} userName={profile.name}>
       <div className="space-y-6">
@@ -47,6 +55,7 @@ export default async function AdminParentsPage() {
           links={links ?? []}
           parents={parents ?? []}
           selectedSessionId={selectedSessionId ?? null}
+          lastSignInMap={lastSignInMap}
         />
       </div>
     </AppShell>

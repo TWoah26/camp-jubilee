@@ -52,8 +52,10 @@ export async function POST(req: Request) {
           parentUserId = existing.id;
           skipped++;
         } else {
+          const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.campjubilee.org";
           const { data: inv, error: invErr } = await admin.auth.admin.inviteUserByEmail(email, {
             data: { name, role: "parent" },
+            redirectTo: `${siteUrl}/auth/accept-invite`,
           });
           if (invErr || !inv?.user) { errors.push(`${email}: ${invErr?.message ?? "failed"}`); continue; }
           await admin.from("users").insert({ id: inv.user.id, email, name, role: "parent" });
@@ -63,7 +65,7 @@ export async function POST(req: Request) {
 
         if (parentUserId) {
           await admin.from("parent_camper_links").upsert(
-            { parent_id: parentUserId, camper_id: camper.id, approved: true },
+            { parent_id: parentUserId, camper_id: camper.id, approved: false },
             { onConflict: "parent_id,camper_id" }
           );
         }
