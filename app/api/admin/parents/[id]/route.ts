@@ -15,12 +15,30 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
   const admin = await createAdminClient();
 
-  // Explicitly delete each layer — don't rely on cascades
-  await admin.from("parent_camper_links").delete().eq("parent_id", id);
-  await admin.from("users").delete().eq("id", id);
+  // Verify the target user exists before trying
+  const { data: targetUser, error: lookupError } = await admin.auth.admin.getUserById(id);
+  if (lookupError) {
+    return NextResponse.json({ error: `Lookup failed: ${lookupError.message}` }, { status: 500 });
+  }
+  if (!targetUser?.user) {
+    return NextResponse.json({ error: `No auth user found with id ${id}` }, { status: 404 });
+  }
 
-  const { error } = await admin.auth.admin.deleteUser(id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Explicitly delete each layer
+  const { error: linksError } = await admin.from("parent_camper_links").delete().eq("parent_id", id);
+  if (linksError) return NextResponse.json({ error: `Links delete failed: ${linksError.message}` }, { status: 500 });
+
+  const { error: profileError } = await admin.from("users").delete().eq("id", id);
+  if (profileError) return NextResponse.json({ error: `Profile delete failed: ${profileError.message}` }, { status: 500 });
+
+  const { error: authError } = await admin.auth.admin.deleteUser(id);
+  if (authError) return NextResponse.json({ error: `Auth delete failed: ${authError.message}` }, { status: 500 });
+
+  // Confirm it's actually gone
+  const { data: confirm } = await admin.auth.admin.getUserById(id);
+  if (confirm?.user) {
+    return NextResponse.json({ error: "Delete appeared to succeed but user still exists in auth" }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true });
 }
