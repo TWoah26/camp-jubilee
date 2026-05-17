@@ -128,6 +128,22 @@ export default function ParentList({ campers, links, parents, selectedSessionId,
     window.location.reload();
   };
 
+  const resendInvite = async (parentId: string, parentName: string) => {
+    setLoading(`resend-${parentId}`);
+    const res = await fetch("/api/admin/parents/resend-invite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ parent_id: parentId }),
+    });
+    setLoading(null);
+    if (res.ok) {
+      alert(`Invite resent to ${parentName}.`);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(`Failed: ${data.error ?? res.status}`);
+    }
+  };
+
   const removeLink = async (linkId: string) => {
     if (!confirm("Remove this link?")) return;
     setLoading(`rm-${linkId}`);
@@ -279,6 +295,13 @@ export default function ParentList({ campers, links, parents, selectedSessionId,
                           <span className={`text-xs font-medium ${hasLoggedIn ? "text-jubilee-green" : "text-amber-500"}`}>
                             · {formatLastSeen(lastSeen)}
                           </span>
+                          {!hasLoggedIn && (
+                            <button
+                              onClick={() => resendInvite(p.id, p.name)}
+                              disabled={loading === `resend-${p.id}`}
+                              className="text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 px-2 py-0.5 rounded-lg font-medium disabled:opacity-50"
+                            >{loading === `resend-${p.id}` ? "Sending…" : "Resend invite"}</button>
+                          )}
                           <button
                             onClick={() => { const l = approvedLinks.find(lk => lk.camper.id === camper.id && lk.parent.id === p.id); if (l) removeLink(l.id); }}
                             className="text-xs text-gray-400 hover:text-red-500"
