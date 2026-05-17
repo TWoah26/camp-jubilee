@@ -1,18 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 interface Props {
   camperId: string;
   parentEmail: string | null;
   parentName: string | null;
+  parentPhone: string | null;
   parentLinks: { id: string; parent: { id: string; name: string; email: string } }[];
 }
 
-export default function ParentContactCard({ camperId, parentEmail, parentName, parentLinks }: Props) {
+export default function ParentContactCard({ camperId, parentEmail, parentName, parentPhone, parentLinks }: Props) {
+  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [email, setEmail] = useState(parentEmail ?? "");
   const [name, setName] = useState(parentName ?? "");
+  const [phone, setPhone] = useState(parentPhone ?? "");
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
@@ -20,14 +24,24 @@ export default function ParentContactCard({ camperId, parentEmail, parentName, p
     await fetch("/api/admin/campers/parent-contact", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ camper_id: camperId, parent_email: email, parent_name: name }),
+      body: JSON.stringify({ camper_id: camperId, parent_email: email, parent_name: name, parent_phone: phone }),
     });
     setSaving(false);
     setEditing(false);
-    // Update local state without reload
+    router.refresh();
+  };
+
+  const cancel = () => {
+    setEditing(false);
+    setEmail(parentEmail ?? "");
+    setName(parentName ?? "");
+    setPhone(parentPhone ?? "");
   };
 
   const linkedEmails = new Set(parentLinks.map(l => l.parent?.email));
+  const displayEmail = editing ? email : (parentEmail ?? "");
+  const displayName = editing ? name : (parentName ?? "");
+  const displayPhone = editing ? phone : (parentPhone ?? "");
 
   return (
     <div className="bg-white rounded-2xl shadow p-5">
@@ -59,15 +73,21 @@ export default function ParentContactCard({ camperId, parentEmail, parentName, p
           </div>
         )}
 
-        {/* CSV-imported email (if different from any linked account) */}
+        {/* Saved contact info (if not editing) */}
         {!editing && parentEmail && !linkedEmails.has(parentEmail) && (
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-xs shrink-0">✉️</div>
             <div>
               <p className="text-sm font-medium">{parentName || "Parent"}</p>
               <p className="text-xs text-gray-400">{parentEmail} <span className="text-amber-500 font-medium">· Invite pending</span></p>
+              {parentPhone && <p className="text-xs text-gray-400">{parentPhone}</p>}
             </div>
           </div>
+        )}
+
+        {/* Linked account but show phone if present */}
+        {!editing && parentLinks.length > 0 && parentPhone && (
+          <p className="text-xs text-gray-400 pl-10">{parentPhone}</p>
         )}
 
         {/* No contact */}
@@ -91,7 +111,13 @@ export default function ParentContactCard({ camperId, parentEmail, parentName, p
               value={email}
               onChange={e => setEmail(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
-              autoFocus
+            />
+            <input
+              type="tel"
+              placeholder="Phone number"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
             />
             <div className="flex gap-2 pt-1">
               <button
@@ -102,7 +128,7 @@ export default function ParentContactCard({ camperId, parentEmail, parentName, p
                 {saving ? "Saving…" : "Save"}
               </button>
               <button
-                onClick={() => { setEditing(false); setEmail(parentEmail ?? ""); setName(parentName ?? ""); }}
+                onClick={cancel}
                 className="border border-gray-200 text-gray-600 px-4 py-1.5 rounded-lg text-sm"
               >
                 Cancel

@@ -102,6 +102,7 @@ export default async function AdminCamperDetailPage({ params }: { params: Promis
           camperId={camper.id}
           parentEmail={(camper as any).parent_email ?? null}
           parentName={(camper as any).parent_name ?? null}
+          parentPhone={(camper as any).parent_phone ?? null}
           parentLinks={parentLinks ?? []}
         />
 
