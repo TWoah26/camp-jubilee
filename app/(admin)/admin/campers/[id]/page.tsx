@@ -8,6 +8,7 @@ import CamperInfoCard from "@/components/admin/CamperInfoCard";
 import MedicalInfoForm from "@/components/MedicalInfoForm";
 import StaffAccountLink from "@/components/admin/StaffAccountLink";
 import ParentContactCard from "@/components/admin/ParentContactCard";
+import UnenrollCamperButton from "@/components/admin/UnenrollCamperButton";
 
 export default async function AdminCamperDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -73,6 +74,14 @@ export default async function AdminCamperDetailPage({ params }: { params: Promis
             </div>
           </div>
         </div>
+
+        {/* Remove from session */}
+        {(camper as any).session && (
+          <UnenrollCamperButton
+            camperId={camper.id}
+            sessionName={(camper as any).session.name}
+          />
+        )}
 
         {/* Info grid */}
         <div className="grid sm:grid-cols-2 gap-4">
