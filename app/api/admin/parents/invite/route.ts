@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     // Upsert link
     if (parentUserId) {
       await admin.from("parent_camper_links").upsert(
-        { parent_id: parentUserId, camper_id, approved: false },
+        { parent_id: parentUserId, camper_id, approved: true },
         { onConflict: "parent_id,camper_id" }
       );
     }
