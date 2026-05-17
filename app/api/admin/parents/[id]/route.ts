@@ -1,7 +1,6 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
-// DELETE — fully remove a parent's account from auth and all linked data
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
@@ -15,6 +14,11 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   }
 
   const admin = await createAdminClient();
+
+  // Explicitly delete each layer — don't rely on cascades
+  await admin.from("parent_camper_links").delete().eq("parent_id", id);
+  await admin.from("users").delete().eq("id", id);
+
   const { error } = await admin.auth.admin.deleteUser(id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

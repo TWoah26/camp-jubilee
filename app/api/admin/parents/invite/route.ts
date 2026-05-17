@@ -17,9 +17,9 @@ export async function POST(req: Request) {
 
     const admin = await createAdminClient();
 
-    // Check if user already exists
-    const { data: existingUsers } = await admin.auth.admin.listUsers();
-    const existingAuthUser = existingUsers?.users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+    // Check if user already exists — getUserByEmail is exact and doesn't paginate
+    const { data: existingUserData } = await admin.auth.admin.listUsers({ perPage: 1000 });
+    const existingAuthUser = existingUserData?.users.find(u => u.email?.toLowerCase() === email.toLowerCase());
 
     let parentUserId: string | null = null;
 
