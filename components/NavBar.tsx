@@ -124,13 +124,13 @@ export default function NavBar({ role, userName, sessions = [], currentSessionId
       {/* Mobile bottom nav */}
       {links.length > 0 && (
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-jubilee-navy border-t border-white/10 z-50">
-          <div className="flex">
-            {links.slice(0, 5).map((link) => (
+          <div className="flex overflow-x-auto scrollbar-none">
+            {links.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  "flex-1 flex flex-col items-center py-2 text-xs transition-colors",
+                  "shrink-0 flex flex-col items-center py-2 px-3 text-xs transition-colors min-w-[64px]",
                   pathname === link.href || (link.href !== "/admin" && pathname.startsWith(link.href))
                     ? "text-jubilee-gold"
                     : "text-white/50"
