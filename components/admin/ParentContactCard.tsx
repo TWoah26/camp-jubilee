@@ -18,6 +18,15 @@ export default function ParentContactCard({ camperId, parentEmail, parentName, p
   const [name, setName] = useState(parentName ?? "");
   const [phone, setPhone] = useState(parentPhone ?? "");
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const deleteAccount = async (parentId: string, parentName: string) => {
+    if (!confirm(`Permanently delete ${parentName}'s account? This cannot be undone.`)) return;
+    setDeletingId(parentId);
+    await fetch(`/api/admin/parents/${parentId}`, { method: "DELETE" });
+    setDeletingId(null);
+    router.refresh();
+  };
 
   const save = async () => {
     setSaving(true);
@@ -62,12 +71,21 @@ export default function ParentContactCard({ camperId, parentEmail, parentName, p
         {parentLinks.length > 0 && (
           <div className="space-y-2">
             {parentLinks.map((l: any) => (
-              <div key={l.id} className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-full bg-jubilee-green/10 flex items-center justify-center text-xs shrink-0">✓</div>
-                <div>
-                  <p className="text-sm font-medium">{l.parent?.name}</p>
-                  <p className="text-xs text-gray-400">{l.parent?.email} <span className="text-jubilee-green font-medium">· App linked</span></p>
+              <div key={l.id} className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full bg-jubilee-green/10 flex items-center justify-center text-xs shrink-0">✓</div>
+                  <div>
+                    <p className="text-sm font-medium">{l.parent?.name}</p>
+                    <p className="text-xs text-gray-400">{l.parent?.email} <span className="text-jubilee-green font-medium">· App linked</span></p>
+                  </div>
                 </div>
+                <button
+                  onClick={() => deleteAccount(l.parent.id, l.parent.name)}
+                  disabled={deletingId === l.parent.id}
+                  className="text-xs text-red-400 hover:text-red-600 disabled:opacity-50 shrink-0"
+                >
+                  {deletingId === l.parent.id ? "Deleting…" : "Delete account"}
+                </button>
               </div>
             ))}
           </div>
