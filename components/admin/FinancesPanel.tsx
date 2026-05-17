@@ -255,9 +255,9 @@ export default function FinancesPanel({ storeTransactions, tuitionPayments, bala
         </form>
       )}
 
-      <div className="bg-white rounded-2xl shadow overflow-hidden">
+      <div className="bg-white rounded-2xl shadow overflow-x-auto">
         {tab === "tuition" && (
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[700px] text-sm">
             <thead className="bg-gray-50 border-b"><tr>
               <th className="text-left px-4 py-2 font-medium text-gray-600">Camper</th>
               <th className="text-left px-4 py-2 font-medium text-gray-600">Parent</th>
@@ -288,7 +288,7 @@ export default function FinancesPanel({ storeTransactions, tuitionPayments, bala
         )}
 
         {tab === "store" && (
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[500px] text-sm">
             <thead className="bg-gray-50 border-b"><tr>
               <th className="text-left px-4 py-2 font-medium text-gray-600">Camper</th>
               <th className="text-left px-4 py-2 font-medium text-gray-600">Type</th>
@@ -314,7 +314,7 @@ export default function FinancesPanel({ storeTransactions, tuitionPayments, bala
         )}
 
         {tab === "eod" && (
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[500px] text-sm">
             <thead className="bg-gray-50 border-b"><tr>
               <th className="text-left px-4 py-2 font-medium text-gray-600">Camper</th>
               <th className="text-left px-4 py-2 font-medium text-gray-600">Parent</th>
