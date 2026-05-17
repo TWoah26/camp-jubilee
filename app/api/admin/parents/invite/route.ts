@@ -32,8 +32,10 @@ export async function POST(req: Request) {
       parentUserId = existingAuthUser.id;
     } else {
       // Invite new user
+      const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.campjubilee.org";
       const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email.toLowerCase(), {
         data: { name: name || email, role: "parent" },
+        redirectTo: `${siteUrl}/auth/accept-invite`,
       });
       if (inviteError || !invited?.user) {
         return NextResponse.json({ error: inviteError?.message ?? "Invite failed" }, { status: 500 });
