@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useSearchParams } from "next/navigation";
 
 const schema = z.object({ email: z.string().email("Invalid email") });
 type FormData = z.infer<typeof schema>;
 
-export default function ForgotPasswordPage() {
+function ForgotPasswordForm() {
+  const searchParams = useSearchParams();
+  const linkFailed = searchParams.get("error") === "expired";
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
@@ -19,7 +22,7 @@ export default function ForgotPasswordPage() {
 
   const onSubmit = async (data: FormData) => {
     setLoading(true);
-    const supabase = await createClient();
+    const supabase = createClient();
     await supabase.auth.resetPasswordForEmail(data.email, {
       redirectTo: `${window.location.origin}/auth/reset`,
     });
@@ -34,6 +37,12 @@ export default function ForgotPasswordPage() {
           <div className="font-display font-black text-3xl"><span className="text-jubilee-gold">camp</span> <span className="text-jubilee-navy">jubilee</span></div>
           <p className="text-jubilee-navy/50 text-xs tracking-widest uppercase mt-1">Rest. Restore. Rejoice.</p>
         </div>
+
+        {linkFailed && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-3 text-sm mb-4">
+            That reset link has expired or was already used. Enter your email below to get a fresh one.
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl shadow-lg p-8">
           {sent ? (
@@ -76,5 +85,13 @@ export default function ForgotPasswordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense>
+      <ForgotPasswordForm />
+    </Suspense>
   );
 }

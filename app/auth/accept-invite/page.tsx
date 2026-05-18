@@ -46,7 +46,18 @@ function AcceptInviteInner() {
         <div className="bg-white rounded-2xl shadow-lg p-8 text-center max-w-sm w-full">
           <div className="text-3xl mb-3">⚠️</div>
           <p className="text-jubilee-navy font-semibold mb-1">Invite link expired</p>
-          <p className="text-gray-500 text-sm mb-5">This link can only be used once. Ask your camp director to resend the invite.</p>
+          <p className="text-gray-500 text-sm mb-5">
+            This link can only be used once and may have expired.
+          </p>
+          <a
+            href="/forgot-password"
+            className="block w-full bg-jubilee-navy text-white py-2.5 rounded-lg font-medium hover:bg-jubilee-gold transition-colors text-sm mb-3"
+          >
+            Set password with email →
+          </a>
+          <p className="text-gray-400 text-xs">
+            Or ask your camp director to resend the invite.
+          </p>
         </div>
       </div>
     );
