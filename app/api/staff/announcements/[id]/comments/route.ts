@@ -3,8 +3,9 @@ import { NextResponse } from "next/server";
 
 const ALLOWED_ROLES = ["director", "administrator", "staff", "nurse", "media", "store"];
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -19,7 +20,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     const { data, error } = await supabase
       .from("staff_announcement_comments")
-      .insert({ announcement_id: params.id, user_id: user.id, body: body.trim() })
+      .insert({ announcement_id: id, user_id: user.id, body: body.trim() })
       .select("*, commenter:users!user_id(name)")
       .single();
     if (error) throw error;
