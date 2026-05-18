@@ -8,20 +8,30 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // Allow staff roles or linked parents
     const { data: profile } = await supabase.from("users").select("role").eq("id", user.id).single();
-    const isStaff = ["director", "administrator", "nurse"].includes(profile?.role);
+    const isAdmin = ["director", "administrator", "nurse"].includes(profile?.role);
 
-    if (!isStaff) {
-      const { data: link } = await supabase
-        .from("parent_camper_links")
+    if (!isAdmin) {
+      // Staff members may edit their own camper record
+      const { data: ownCamper } = await supabase
+        .from("campers")
         .select("id")
-        .eq("parent_id", user.id)
-        .eq("camper_id", camper_id)
-        .eq("approved", true)
+        .eq("id", camper_id)
+        .eq("user_id", user.id)
         .single();
 
-      if (!link) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      if (!ownCamper) {
+        // Fall back to linked parent check
+        const { data: link } = await supabase
+          .from("parent_camper_links")
+          .select("id")
+          .eq("parent_id", user.id)
+          .eq("camper_id", camper_id)
+          .eq("approved", true)
+          .single();
+
+        if (!link) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     const { medical, medications } = await req.json();

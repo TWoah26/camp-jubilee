@@ -41,14 +41,26 @@ const adminLinks = [
 const nurseLinks = [
   { href: "/admin/checkin", label: "Check-In", icon: "✅" },
   { href: "/admin/medical", label: "Medical", icon: "🏥" },
+  { href: "/staff", label: "Home", icon: "🏠" },
+  { href: "/staff/store", label: "My Store", icon: "💳" },
+  { href: "/photos", label: "Photos", icon: "📸" },
+  { href: "/info", label: "Info", icon: "ℹ️" },
 ];
 
 const mediaLinks = [
-  { href: "/admin/photos", label: "Photos", icon: "📸" },
+  { href: "/admin/photos", label: "Upload", icon: "⬆️" },
+  { href: "/staff", label: "Home", icon: "🏠" },
+  { href: "/staff/store", label: "My Store", icon: "💳" },
+  { href: "/photos", label: "Photos", icon: "📸" },
+  { href: "/info", label: "Info", icon: "ℹ️" },
 ];
 
 const storeLinks = [
   { href: "/admin/store", label: "Camp Store", icon: "🛍️" },
+  { href: "/staff", label: "Home", icon: "🏠" },
+  { href: "/staff/store", label: "My Store", icon: "💳" },
+  { href: "/photos", label: "Photos", icon: "📸" },
+  { href: "/info", label: "Info", icon: "ℹ️" },
 ];
 
 const staffLinks = [

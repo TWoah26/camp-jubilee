@@ -11,8 +11,8 @@ export default async function PhotosPage() {
   const { data: profile } = await supabase.from("users").select("*").eq("id", user.id).single();
   if (!profile) redirect("/login");
 
-  // Staff members can see all photos
-  const isStaffUser = profile.role === "staff";
+  // Staff and specialty roles can see all photos
+  const isStaffUser = ["staff", "nurse", "media", "store"].includes(profile.role);
 
   // Get parent's linked campers with their session info
   const { data: links } = await supabase

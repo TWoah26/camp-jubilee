@@ -13,7 +13,7 @@ export default async function StaffStorePage() {
 
   const { data: profile } = await supabase.from("users").select("*").eq("id", user.id).single();
   if (!profile) redirect("/login");
-  if (profile.role !== "staff") redirect("/dashboard");
+  if (!["staff", "nurse", "media", "store"].includes(profile.role)) redirect("/dashboard");
 
   const { data: camper } = await supabase
     .from("campers")

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import AppShell from "@/components/AppShell";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
+import MedicalInfoForm from "@/components/MedicalInfoForm";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export default async function StaffDashboardPage() {
 
   const { data: profile } = await supabase.from("users").select("*").eq("id", user.id).single();
   if (!profile) redirect("/login");
-  if (profile.role !== "staff") redirect("/dashboard");
+  if (!["staff", "nurse", "media", "store"].includes(profile.role)) redirect("/dashboard");
 
   // Find this staff member's camper record
   const { data: camper } = await supabase
@@ -36,6 +37,12 @@ export default async function StaffDashboardPage() {
     .eq("to_camper_id", camper.id)
     .order("sent_at", { ascending: false })
     .limit(5) : { data: null };
+
+  // Medical info and medications for this staff member
+  const [{ data: medicalInfo }, { data: medications }] = camper ? await Promise.all([
+    supabase.from("medical_info").select("*").eq("camper_id", camper.id).single(),
+    supabase.from("medications").select("*").eq("camper_id", camper.id),
+  ]) : [{ data: null }, { data: null }];
 
   return (
     <AppShell role={profile.role} userName={profile.name}>
@@ -85,6 +92,17 @@ export default async function StaffDashboardPage() {
                 </div>
               </div>
             )}
+
+            {/* Emergency contacts & medical info */}
+            <div className="bg-white rounded-2xl shadow p-5">
+              <h2 className="font-semibold text-jubilee-navy mb-4">🚨 Emergency &amp; Medical Info</h2>
+              <MedicalInfoForm
+                camperId={camper.id}
+                camperName={`${camper.first_name} ${camper.last_name}`}
+                initialMedical={medicalInfo ?? {}}
+                initialMedications={medications ?? []}
+              />
+            </div>
           </>
         )}
 
