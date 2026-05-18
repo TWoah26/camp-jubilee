@@ -22,11 +22,11 @@ export async function POST(req: Request) {
       .insert({ title: title.trim(), body: body?.trim() ?? "", posted_by: user.id })
       .select()
       .single();
-    if (error) throw error;
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     return NextResponse.json(data);
-  } catch {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message ?? "Server error" }, { status: 500 });
   }
 }
 

@@ -27,11 +27,13 @@ export default function StaffAnnouncementsEditor({ initialAnnouncements }: Props
   const [announcements, setAnnouncements] = useState(initialAnnouncements);
   const [form, setForm] = useState({ title: "", body: "" });
   const [posting, setPosting] = useState(false);
+  const [postError, setPostError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const post = async (e: React.FormEvent) => {
     e.preventDefault();
     setPosting(true);
+    setPostError(null);
     const res = await fetch("/api/admin/staff-announcements", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -42,6 +44,8 @@ export default function StaffAnnouncementsEditor({ initialAnnouncements }: Props
     if (data.id) {
       setAnnouncements(prev => [{ ...data, poster: undefined, comments: [] }, ...prev]);
       setForm({ title: "", body: "" });
+    } else {
+      setPostError(data.error ?? "Something went wrong. Try again.");
     }
   };
 
@@ -81,6 +85,7 @@ export default function StaffAnnouncementsEditor({ initialAnnouncements }: Props
         >
           {posting ? "Posting…" : "Post to Staff"}
         </button>
+        {postError && <p className="text-red-500 text-sm mt-2">{postError}</p>}
       </form>
 
       {announcements.length > 0 && (
