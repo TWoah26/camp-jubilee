@@ -4,6 +4,7 @@ import AppShell from "@/components/AppShell";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import MedicalInfoForm from "@/components/MedicalInfoForm";
+import StaffFeed from "@/components/staff/StaffFeed";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +24,11 @@ export default async function StaffDashboardPage() {
     .eq("user_id", user.id)
     .single();
 
-  // Recent announcements
-  const { data: announcements } = await supabase
-    .from("announcements")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(3);
+  // Staff board posts with comments
+  const { data: staffAnnouncements } = await supabase
+    .from("staff_announcements")
+    .select("*, poster:users!posted_by(name), comments:staff_announcement_comments(*, commenter:users!user_id(name))")
+    .order("created_at", { ascending: false });
 
   // Messages from linked parents (if any)
   const { data: messages } = camper ? await supabase
@@ -106,19 +106,13 @@ export default async function StaffDashboardPage() {
           </>
         )}
 
-        {/* Announcements */}
-        {announcements && announcements.length > 0 && (
-          <div className="bg-white rounded-2xl shadow p-5">
-            <h2 className="font-semibold text-jubilee-navy mb-3">📢 Updates</h2>
-            <div className="space-y-3">
-              {announcements.map((a: any) => (
-                <div key={a.id} className="border-l-4 border-jubilee-gold pl-3">
-                  <p className="font-medium text-sm text-jubilee-navy">{a.title}</p>
-                  <p className="text-gray-600 text-sm mt-0.5">{a.body}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* Staff board */}
+        {staffAnnouncements && staffAnnouncements.length > 0 && (
+          <StaffFeed
+            announcements={staffAnnouncements.map((a: any) => ({ ...a, comments: a.comments ?? [] }))}
+            currentUserId={user.id}
+            currentUserRole={profile.role}
+          />
         )}
       </div>
     </AppShell>
