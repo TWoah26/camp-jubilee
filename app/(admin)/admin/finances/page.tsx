@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAdminSessionId } from "@/lib/admin-session";
 import AppShell from "@/components/AppShell";
 import FinancesPanel from "@/components/admin/FinancesPanel";
+import BalanceReminderButton from "@/components/admin/BalanceReminderButton";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,10 @@ export default async function AdminFinancesPage() {
   return (
     <AppShell role={profile.role} userName={profile.name}>
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-jubilee-green-dark">Finances</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-jubilee-green-dark">Finances</h1>
+          <BalanceReminderButton />
+        </div>
         <FinancesPanel
           storeTransactions={storeTransactions ?? []}
           tuitionPayments={tuitionPayments ?? []}
