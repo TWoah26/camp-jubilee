@@ -5,6 +5,8 @@ import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import type { Camper, Session, ParentCamperLink } from "@/types";
 import UnlinkCamperButton from "@/components/UnlinkCamperButton";
+import NotificationPrompt from "@/components/NotificationPrompt";
+import NotificationsSeenMarker from "@/components/NotificationsSeenMarker";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -68,7 +70,14 @@ export default async function DashboardPage() {
     .from("announcements")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(3);
+    .limit(5);
+
+  const lastSeen: string | null = (profile as any).notifications_last_seen_at ?? null;
+  const unreadIds = new Set(
+    (updates ?? [])
+      .filter((u: any) => !lastSeen || new Date(u.created_at) > new Date(lastSeen))
+      .map((u: any) => u.id)
+  );
 
   const pendingLinks = await supabase
     .from("parent_camper_links")
@@ -78,6 +87,7 @@ export default async function DashboardPage() {
 
   return (
     <AppShell role={profile.role} userName={profile.name}>
+      <NotificationsSeenMarker />
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-jubilee-navy">Welcome back, {profile.name.split(" ")[0]}!</h1>
@@ -157,13 +167,23 @@ export default async function DashboardPage() {
           </div>
         )}
 
+        <NotificationPrompt userId={user.id} />
+
         {updates && updates.length > 0 && (
           <div className="bg-white rounded-2xl shadow p-5">
-            <h3 className="font-semibold text-jubilee-navy mb-3">📢 Updates</h3>
+            <h3 className="font-semibold text-jubilee-navy mb-3 flex items-center gap-2">
+              📢 Updates
+              {unreadIds.size > 0 && (
+                <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{unreadIds.size} new</span>
+              )}
+            </h3>
             <div className="space-y-3">
               {updates.map((u: any) => (
-                <div key={u.id} className="border-l-4 border-jubilee-gold pl-3">
-                  <p className="font-medium text-sm text-jubilee-navy">{u.title}</p>
+                <div key={u.id} className={`border-l-4 pl-3 ${unreadIds.has(u.id) ? "border-red-400 bg-red-50 rounded-r-lg pr-2 py-1" : "border-jubilee-gold"}`}>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-sm text-jubilee-navy">{u.title}</p>
+                    {unreadIds.has(u.id) && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded-full">NEW</span>}
+                  </div>
                   <p className="text-gray-600 text-sm mt-0.5">{u.body}</p>
                 </div>
               ))}

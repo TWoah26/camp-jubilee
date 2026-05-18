@@ -34,9 +34,10 @@ export async function requestPushPermission(userId: string): Promise<string | nu
     const permission = await Notification.requestPermission();
     if (permission !== "granted") return null;
 
+    const swReg = await navigator.serviceWorker.register("/api/firebase-sw", { scope: "/" });
     const token = await getToken(m, {
       vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
-      serviceWorkerRegistration: await navigator.serviceWorker.register("/firebase-messaging-sw.js"),
+      serviceWorkerRegistration: swReg,
     });
 
     if (token) {
