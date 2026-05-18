@@ -34,18 +34,25 @@ export default function StaffAnnouncementsEditor({ initialAnnouncements }: Props
     e.preventDefault();
     setPosting(true);
     setPostError(null);
-    const res = await fetch("/api/admin/staff-announcements", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    const data = await res.json();
-    setPosting(false);
-    if (data.id) {
-      setAnnouncements(prev => [{ ...data, poster: undefined, comments: [] }, ...prev]);
-      setForm({ title: "", body: "" });
-    } else {
-      setPostError(data.error ?? "Something went wrong. Try again.");
+    try {
+      const res = await fetch("/api/admin/staff-announcements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const text = await res.text();
+      let data: any;
+      try { data = JSON.parse(text); } catch { data = { error: `Non-JSON response: ${text.slice(0, 100)}` }; }
+      if (data.id) {
+        setAnnouncements(prev => [{ ...data, poster: undefined, comments: [] }, ...prev]);
+        setForm({ title: "", body: "" });
+      } else {
+        setPostError(data.error ?? "Something went wrong. Try again.");
+      }
+    } catch (err: any) {
+      setPostError(err?.message ?? "Network error. Try again.");
+    } finally {
+      setPosting(false);
     }
   };
 
