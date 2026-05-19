@@ -6,11 +6,12 @@ interface Props {
   camperId: string;
   camperName: string;
   currentPhotoUrl?: string | null;
+  size?: "sm" | "md";
 }
 
 type Mode = "idle" | "menu" | "camera";
 
-export default function CamperProfilePhotoUpload({ camperId, camperName, currentPhotoUrl }: Props) {
+export default function CamperProfilePhotoUpload({ camperId, camperName, currentPhotoUrl, size = "md" }: Props) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(currentPhotoUrl ?? null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -158,17 +159,17 @@ export default function CamperProfilePhotoUpload({ camperId, camperName, current
 
   return (
     <>
-      <div className="flex flex-col items-center gap-3">
+      <div className={`flex flex-col items-center ${size === "md" ? "gap-3" : "gap-1"}`}>
         {/* Avatar */}
         <div
-          className="relative w-24 h-24 rounded-full overflow-hidden cursor-pointer group border-4 border-jubilee-gold shadow-md"
+          className={`relative rounded-full overflow-hidden cursor-pointer group border-4 border-jubilee-gold shadow-md ${size === "md" ? "w-24 h-24" : "w-12 h-12"}`}
           onClick={() => !uploading && setMode(m => m === "menu" ? "idle" : "menu")}
           title="Click to update profile photo"
         >
           {photoUrl ? (
             <img src={photoUrl} alt={camperName} className="w-full h-full object-cover" />
           ) : (
-            <div className="w-full h-full bg-jubilee-navy flex items-center justify-center text-white text-2xl font-bold">
+            <div className={`w-full h-full bg-jubilee-navy flex items-center justify-center text-white font-bold ${size === "md" ? "text-2xl" : "text-sm"}`}>
               {initials}
             </div>
           )}
@@ -207,8 +208,11 @@ export default function CamperProfilePhotoUpload({ camperId, camperName, current
           onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
         />
 
-        {error && !mode.startsWith("camera") && (
+        {size === "md" && error && !mode.startsWith("camera") && (
           <p className="text-xs text-red-500">{error}</p>
+        )}
+        {size === "sm" && error && !mode.startsWith("camera") && (
+          <p className="text-xs text-red-500 text-center">{error}</p>
         )}
       </div>
 

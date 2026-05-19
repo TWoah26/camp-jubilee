@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import CamperProfilePhotoUpload from "@/components/CamperProfilePhotoUpload";
 import { format } from "date-fns";
 
 const TIME_LABELS: Record<string, string> = {
@@ -245,10 +246,13 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
           <div className="bg-white rounded-2xl shadow sticky top-4 max-h-[calc(100vh-6rem)] overflow-y-auto">
             {/* Panel header */}
             <div className="flex items-center gap-3 p-5 border-b border-gray-100">
-              <div className="w-12 h-12 rounded-full shrink-0 overflow-hidden bg-jubilee-green-light flex items-center justify-center text-white font-bold text-lg">
-                {selected.photo_url
-                  ? <img src={selected.photo_url} alt="" className="w-full h-full object-cover" />
-                  : <span>{selected.first_name[0]}{selected.last_name[0]}</span>}
+              <div className="shrink-0">
+                <CamperProfilePhotoUpload
+                  camperId={selected.id}
+                  camperName={`${selected.first_name} ${selected.last_name}`}
+                  currentPhotoUrl={selected.photo_url}
+                  size="sm"
+                />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-jubilee-navy text-lg leading-tight">{selected.first_name} {selected.last_name}</p>
