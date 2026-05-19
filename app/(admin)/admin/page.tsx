@@ -108,6 +108,7 @@ export default async function AdminDashboard() {
             { href: "/admin/finances", label: "Finances", icon: "💰", desc: "Transactions & end-of-session" },
             { href: "/admin/info", label: "Info Pages", icon: "📝", desc: "Post announcements & edit pages" },
             { href: "/admin/session", label: "Session Settings", icon: "⚙️", desc: "Toggle messaging & cabin info" },
+            { href: "/admin/registration", label: "Registration Station", icon: "📷", desc: "Photo capture & live TV feeds" },
           ].map(item => (
             <Link key={item.href} href={item.href} className="bg-white rounded-2xl shadow p-4 hover:shadow-md transition-shadow flex items-center gap-4">
               <span className="text-3xl">{item.icon}</span>

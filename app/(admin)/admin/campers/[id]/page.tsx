@@ -9,6 +9,7 @@ import MedicalInfoForm from "@/components/MedicalInfoForm";
 import StaffAccountLink from "@/components/admin/StaffAccountLink";
 import ParentContactCard from "@/components/admin/ParentContactCard";
 import UnenrollCamperButton from "@/components/admin/UnenrollCamperButton";
+import CamperProfilePhotoUpload from "@/components/CamperProfilePhotoUpload";
 
 export default async function AdminCamperDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -57,13 +58,11 @@ export default async function AdminCamperDetailPage({ params }: { params: Promis
         <div className="flex items-center gap-4">
           <Link href="/admin/campers" className="text-jubilee-navy hover:underline text-sm">← Roster</Link>
           <div className="flex items-center gap-3">
-            {camper.photo_url ? (
-              <img src={camper.photo_url} alt="" className="w-12 h-12 rounded-full object-cover" />
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-jubilee-green-light flex items-center justify-center text-white font-bold text-lg">
-                {camper.first_name[0]}{camper.last_name[0]}
-              </div>
-            )}
+            <CamperProfilePhotoUpload
+              camperId={camper.id}
+              camperName={`${camper.first_name} ${camper.last_name}`}
+              currentPhotoUrl={camper.photo_url ?? null}
+            />
             <div>
               <h1 className="text-2xl font-bold text-jubilee-navy">{camper.first_name} {camper.last_name}</h1>
               <div className="flex gap-2 mt-0.5">
