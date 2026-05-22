@@ -23,13 +23,15 @@ export default async function AdminFinancesPage() {
     { data: sessions },
     { data: campers },
     { data: parents },
+    { data: refundRecords },
   ] = await Promise.all([
     supabase.from("store_transactions").select("*, camper:campers(first_name, last_name), staff:users(name)").order("created_at", { ascending: false }).limit(100),
     supabase.from("tuition_payments").select("*, camper:campers(first_name, last_name), parent:users(name)").order("paid_at", { ascending: false }).limit(100),
     supabase.from("session_balance_choices").select("*, camper:campers(first_name, last_name), parent:users(name)").order("chosen_at", { ascending: false }),
     supabase.from("sessions").select("*").order("start_date", { ascending: true }),
-    supabase.from("campers").select("id, first_name, last_name").order("first_name"),
+    supabase.from("campers").select("id, first_name, last_name, session_id, store_balance").order("first_name"),
     supabase.from("users").select("id, name").eq("role", "parent").order("name"),
+    supabase.from("refund_records").select("*"),
   ]);
 
   return (
@@ -46,6 +48,7 @@ export default async function AdminFinancesPage() {
           sessions={sessions ?? []}
           campers={campers ?? []}
           parents={parents ?? []}
+          refundRecords={refundRecords ?? []}
           defaultSessionId={selectedSessionId}
         />
       </div>

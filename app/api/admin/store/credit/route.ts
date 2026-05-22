@@ -12,7 +12,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { camper_id, amount, note } = await req.json();
+    const { camper_id, amount, note, payment_method } = await req.json();
     if (!camper_id || !amount || amount <= 0) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
@@ -31,7 +31,8 @@ export async function POST(req: Request) {
       camper_id,
       amount,
       type: "credit",
-      note: note || "Manual credit",
+      note: note || "Manual deposit",
+      payment_method: payment_method || "cash",
       staff_id: user.id,
     });
     if (txError) return NextResponse.json({ error: txError.message }, { status: 500 });
