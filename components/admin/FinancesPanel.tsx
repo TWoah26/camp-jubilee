@@ -456,6 +456,7 @@ export default function FinancesPanel({ storeTransactions, tuitionPayments, bala
                     <th className="text-left px-4 py-3 font-medium text-gray-600">Balance</th>
                     <th className="text-left px-4 py-3 font-medium text-gray-600">Refund Amount</th>
                     <th className="text-left px-4 py-3 font-medium text-gray-600">Funded Via</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-600">Parent's Choice</th>
                     <th className="text-left px-4 py-3 font-medium text-gray-600">Action</th>
                   </tr>
                 </thead>
@@ -465,6 +466,7 @@ export default function FinancesPanel({ storeTransactions, tuitionPayments, bala
                     const sources = getPaymentSources(c.id);
                     const record = getRefundRecord(c.id);
                     const currentMethod = refundMethods[c.id] ?? suggestedRefundMethod(c.id);
+                    const parentChoice = filteredChoices.find((ch: any) => ch.camper_id === c.id);
 
                     return (
                       <tr key={c.id} className="hover:bg-gray-50">
@@ -479,6 +481,17 @@ export default function FinancesPanel({ storeTransactions, tuitionPayments, bala
                               </span>
                             ))}
                           </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {parentChoice ? (
+                            parentChoice.choice === "donate" ? (
+                              <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">💚 Donate</span>
+                            ) : (
+                              <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">💸 Refund {formatCurrency(parentChoice.refund_amount)}</span>
+                            )
+                          ) : (
+                            <span className="text-xs bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">⏳ No response</span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           {record ? (
