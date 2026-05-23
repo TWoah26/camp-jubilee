@@ -44,7 +44,7 @@ export default async function AdminCheckInPage() {
       .from("campers")
       .select(`
         id, first_name, last_name, cabin, counselor_name, photo_url, is_staff, session_id,
-        tuition_commitment, registration_notes,
+        tuition_commitment, registration_notes, store_balance,
         medical_info(
           food_allergies, medication_allergies, environmental_allergies,
           conditions, insurance_provider, insurance_policy_number,
@@ -80,6 +80,7 @@ export default async function AdminCheckInPage() {
       : (c.checkin_records ?? null),
     tuition_commitment: c.tuition_commitment ?? 0,
     tuition_paid: paidByCamper[c.id] ?? 0,
+    store_balance: c.store_balance ?? 0,
   }));
 
   return (

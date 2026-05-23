@@ -3,6 +3,7 @@
 import { useState } from "react";
 import CamperProfilePhotoUpload from "@/components/CamperProfilePhotoUpload";
 import { format } from "date-fns";
+import { formatCurrency } from "@/lib/utils";
 
 const TIME_LABELS: Record<string, string> = {
   breakfast: "☀️ Breakfast",
@@ -35,6 +36,7 @@ type Camper = {
   medications: any[];
   tuition_commitment: number;
   tuition_paid: number;
+  store_balance: number;
   registration_notes: string | null;
 };
 
@@ -65,9 +67,28 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
   const [localRecords, setLocalRecords] = useState<Record<string, CheckinRecord>>(
     Object.fromEntries(campers.filter(c => c.checkin_record).map(c => [c.id, c.checkin_record!]))
   );
+  const [localTuitionPaid, setLocalTuitionPaid] = useState<Record<string, number>>(
+    Object.fromEntries(campers.map(c => [c.id, c.tuition_paid]))
+  );
+  const [localStoreBal, setLocalStoreBal] = useState<Record<string, number>>(
+    Object.fromEntries(campers.map(c => [c.id, c.store_balance]))
+  );
   const [saving, setSaving] = useState(false);
   const [checkinNotes, setCheckinNotes] = useState("");
   const [pickupNotes, setPickupNotes] = useState("");
+
+  // Payment form state
+  const [storeAmt, setStoreAmt] = useState("");
+  const [storeNote, setStoreNote] = useState("");
+  const [storeSaving, setStoreSaving] = useState(false);
+  const [storeError, setStoreError] = useState("");
+  const [storeSuccess, setStoreSuccess] = useState("");
+
+  const [tuitionAmt, setTuitionAmt] = useState("");
+  const [tuitionNote, setTuitionNote] = useState("");
+  const [tuitionSaving, setTuitionSaving] = useState(false);
+  const [tuitionError, setTuitionError] = useState("");
+  const [tuitionSuccess, setTuitionSuccess] = useState("");
 
   const cabins = [...new Set(campers.map(c => c.cabin).filter(Boolean))].sort() as string[];
 
@@ -81,7 +102,6 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
     if (statusFilter === "picked_up" && !rec?.picked_up) return false;
     return true;
   }).sort((a, b) => {
-    // Sort: pending first, then checked-in, then picked up; within each group by name
     const statusOrder = (c: Camper) => {
       const r = localRecords[c.id];
       if (!r?.checked_in) return 0;
@@ -101,6 +121,15 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
     const rec = localRecords[camper.id];
     setCheckinNotes(rec?.checkin_notes ?? "");
     setPickupNotes(rec?.pickup_notes ?? "");
+    // Reset payment forms
+    setStoreAmt("");
+    setStoreNote("");
+    setStoreError("");
+    setStoreSuccess("");
+    setTuitionAmt("");
+    setTuitionNote("");
+    setTuitionError("");
+    setTuitionSuccess("");
   };
 
   const closePanel = () => setSelected(null);
@@ -128,9 +157,114 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
     setSaving(false);
   };
 
+  // Manual store credit (cash/check)
+  const handleManualStoreCredit = async () => {
+    if (!selected) return;
+    const amt = parseFloat(storeAmt);
+    if (isNaN(amt) || amt <= 0) { setStoreError("Enter a valid amount."); return; }
+    setStoreSaving(true);
+    setStoreError("");
+    try {
+      const res = await fetch("/api/admin/store/credit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          camper_id: selected.id,
+          amount: amt,
+          note: storeNote || "Collected at registration",
+          payment_method: "in_person",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setStoreError(data.error ?? "Failed to add credit."); return; }
+      setLocalStoreBal(prev => ({ ...prev, [selected.id]: data.new_balance }));
+      setStoreSuccess(`${formatCurrency(amt)} added — new balance ${formatCurrency(data.new_balance)}`);
+      setStoreAmt("");
+      setStoreNote("");
+    } catch { setStoreError("Network error."); }
+    finally { setStoreSaving(false); }
+  };
+
+  // Square POS for store credit
+  const handleSquareStoreCredit = () => {
+    if (!selected) return;
+    const amt = parseFloat(storeAmt);
+    if (isNaN(amt) || amt <= 0) { setStoreError("Enter a valid amount."); return; }
+    setStoreError("");
+    const amountCents = Math.round(amt * 100);
+    const callbackUrl = `${window.location.origin}/admin/store/pos-callback?return_to=${encodeURIComponent("/admin/checkin")}`;
+    const clientTransactionId = `store___${selected.id}___${amountCents}___${Date.now()}`;
+    const payload = JSON.stringify({
+      amount_money: { amount: amountCents, currency_code: "USD" },
+      callback_url: callbackUrl,
+      client_transaction_id: clientTransactionId,
+      version: "1.3",
+      notes: `Store credit – ${selected.first_name} ${selected.last_name}`,
+    });
+    window.location.href = `square-commerce-v1://payment/create?data=${encodeURIComponent(btoa(payload))}`;
+  };
+
+  // Manual tuition payment
+  const handleManualTuition = async () => {
+    if (!selected) return;
+    const amt = parseFloat(tuitionAmt);
+    if (isNaN(amt) || amt <= 0) { setTuitionError("Enter a valid amount."); return; }
+    setTuitionSaving(true);
+    setTuitionError("");
+    try {
+      const res = await fetch("/api/admin/payments/record", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          camper_id: selected.id,
+          amount: amt,
+          type: "tuition",
+          payment_method: "in_person",
+          notes: tuitionNote || "Collected at registration",
+          session_id: sessionId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setTuitionError(data.error ?? "Failed to record payment."); return; }
+      const newPaid = (localTuitionPaid[selected.id] ?? 0) + amt;
+      setLocalTuitionPaid(prev => ({ ...prev, [selected.id]: newPaid }));
+      setTuitionSuccess(`${formatCurrency(amt)} recorded — ${formatCurrency(newPaid)} total paid`);
+      setTuitionAmt("");
+      setTuitionNote("");
+    } catch { setTuitionError("Network error."); }
+    finally { setTuitionSaving(false); }
+  };
+
+  // Square POS for tuition payment
+  const handleSquareTuition = () => {
+    if (!selected) return;
+    const amt = parseFloat(tuitionAmt);
+    if (isNaN(amt) || amt <= 0) { setTuitionError("Enter a valid amount."); return; }
+    setTuitionError("");
+    const amountCents = Math.round(amt * 100);
+    const callbackUrl = `${window.location.origin}/admin/store/pos-callback?return_to=${encodeURIComponent("/admin/checkin")}`;
+    const clientTransactionId = `tuition___${selected.id}___${sessionId}___${amountCents}___${Date.now()}`;
+    const payload = JSON.stringify({
+      amount_money: { amount: amountCents, currency_code: "USD" },
+      callback_url: callbackUrl,
+      client_transaction_id: clientTransactionId,
+      version: "1.3",
+      notes: `Tuition – ${selected.first_name} ${selected.last_name}`,
+    });
+    window.location.href = `square-commerce-v1://payment/create?data=${encodeURIComponent(btoa(payload))}`;
+  };
+
   const rec = selected ? localRecords[selected.id] : null;
   const m = selected?.medical_info;
   const hasAlerts = !!(m?.food_allergies || m?.medication_allergies || m?.environmental_allergies || m?.conditions);
+
+  // Derived finance values for selected camper
+  const selectedStoreBal = selected ? (localStoreBal[selected.id] ?? 0) : 0;
+  const selectedTuitionPaid = selected ? (localTuitionPaid[selected.id] ?? 0) : 0;
+  const selectedEffectiveCommitment = selected
+    ? (selected.tuition_commitment > 0 ? selected.tuition_commitment : sessionTuitionAmount)
+    : 0;
+  const selectedBalanceDue = Math.max(0, selectedEffectiveCommitment - selectedTuitionPaid);
 
   return (
     <div className="flex gap-6 h-full">
@@ -199,7 +333,7 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
             const r = localRecords[camper.id];
             const isSelected = selected?.id === camper.id;
             const effectiveCommitment = camper.tuition_commitment > 0 ? camper.tuition_commitment : sessionTuitionAmount;
-            const balanceDue = effectiveCommitment - camper.tuition_paid;
+            const balanceDue = Math.max(0, effectiveCommitment - (localTuitionPaid[camper.id] ?? camper.tuition_paid));
             return (
               <button
                 key={camper.id}
@@ -280,20 +414,126 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
                 </div>
               )}
 
-              {/* Balance due alert */}
-              {showFinances && (() => {
-                const effectiveCommitment = selected.tuition_commitment > 0 ? selected.tuition_commitment : sessionTuitionAmount;
-                const balanceDue = effectiveCommitment - selected.tuition_paid;
-                return balanceDue > 0 ? (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">💰 Outstanding Balance</p>
-                    <p className="text-sm text-amber-800">
-                      <span className="font-bold">${balanceDue.toFixed(2)}</span> remaining of {effectiveCommitment === sessionTuitionAmount ? "session default" : "custom"} commitment (${effectiveCommitment.toFixed(2)})
-                    </p>
-                    <p className="text-xs text-amber-600 mt-0.5">${selected.tuition_paid.toFixed(2)} paid so far</p>
+              {/* ── Registration Payments (directors/admins only) ── */}
+              {showFinances && (
+                <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="bg-jubilee-navy px-4 py-2.5">
+                    <p className="text-xs font-semibold text-white uppercase tracking-wide">💳 Registration Payments</p>
                   </div>
-                ) : null;
-              })()}
+                  <div className="p-4 space-y-4">
+
+                    {/* ── Tuition Balance ── */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-medium text-gray-600">Tuition</p>
+                        <div className="text-right">
+                          {selectedBalanceDue > 0 ? (
+                            <span className="text-xs font-bold text-red-600">{formatCurrency(selectedBalanceDue)} due</span>
+                          ) : (
+                            <span className="text-xs font-bold text-jubilee-green">Paid in full</span>
+                          )}
+                          <span className="text-xs text-gray-400 ml-1">({formatCurrency(selectedTuitionPaid)} of {formatCurrency(selectedEffectiveCommitment)})</span>
+                        </div>
+                      </div>
+                      {tuitionSuccess && (
+                        <p className="text-xs text-jubilee-green font-medium">✓ {tuitionSuccess}</p>
+                      )}
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                          <input
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            value={tuitionAmt}
+                            onChange={e => { setTuitionAmt(e.target.value); setTuitionError(""); setTuitionSuccess(""); }}
+                            placeholder={selectedBalanceDue > 0 ? selectedBalanceDue.toFixed(2) : "0.00"}
+                            className="w-full border border-gray-300 rounded-lg pl-6 pr-2 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
+                          />
+                        </div>
+                        <input
+                          type="text"
+                          value={tuitionNote}
+                          onChange={e => setTuitionNote(e.target.value)}
+                          placeholder="Note"
+                          className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
+                        />
+                      </div>
+                      {tuitionError && <p className="text-red-500 text-xs">{tuitionError}</p>}
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={handleManualTuition}
+                          disabled={tuitionSaving || !tuitionAmt}
+                          className="bg-gray-100 text-gray-700 py-2 rounded-lg text-xs font-medium hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                        >
+                          {tuitionSaving ? "Recording…" : "💵 Cash / Check"}
+                        </button>
+                        <button
+                          onClick={handleSquareTuition}
+                          disabled={!tuitionAmt}
+                          className="bg-jubilee-navy text-white py-2 rounded-lg text-xs font-medium hover:bg-jubilee-gold disabled:opacity-50 transition-colors"
+                        >
+                          💳 Charge Square
+                        </button>
+                      </div>
+                    </div>
+
+                    <hr className="border-gray-100" />
+
+                    {/* ── Store Funds ── */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-medium text-gray-600">Store Balance</p>
+                        <span className={`text-xs font-bold ${selectedStoreBal > 0 ? "text-jubilee-green" : "text-gray-400"}`}>
+                          {formatCurrency(selectedStoreBal)}
+                        </span>
+                      </div>
+                      {storeSuccess && (
+                        <p className="text-xs text-jubilee-green font-medium">✓ {storeSuccess}</p>
+                      )}
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                          <input
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            value={storeAmt}
+                            onChange={e => { setStoreAmt(e.target.value); setStoreError(""); setStoreSuccess(""); }}
+                            placeholder="0.00"
+                            className="w-full border border-gray-300 rounded-lg pl-6 pr-2 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
+                          />
+                        </div>
+                        <input
+                          type="text"
+                          value={storeNote}
+                          onChange={e => setStoreNote(e.target.value)}
+                          placeholder="Note"
+                          className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
+                        />
+                      </div>
+                      {storeError && <p className="text-red-500 text-xs">{storeError}</p>}
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={handleManualStoreCredit}
+                          disabled={storeSaving || !storeAmt}
+                          className="bg-gray-100 text-gray-700 py-2 rounded-lg text-xs font-medium hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                        >
+                          {storeSaving ? "Adding…" : "💵 Cash / Check"}
+                        </button>
+                        <button
+                          onClick={handleSquareStoreCredit}
+                          disabled={!storeAmt}
+                          className="bg-jubilee-navy text-white py-2 rounded-lg text-xs font-medium hover:bg-jubilee-gold disabled:opacity-50 transition-colors"
+                        >
+                          💳 Charge Square
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-400 text-center">Square accepts card · Apple Pay · Google Pay</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Medical alerts */}
               {hasAlerts && (
