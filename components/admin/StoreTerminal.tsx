@@ -21,6 +21,10 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
   const [lastReceipt, setLastReceipt] = useState<{ name: string; amount: number; balance: number; note: string } | null>(null);
   const [error, setError] = useState("");
 
+  // Add funds via Square POS
+  const [fundAmount, setFundAmount] = useState("");
+  const [fundError, setFundError] = useState("");
+
   // Quick amounts
   const [quickAmounts, setQuickAmounts] = useState<number[]>(initialQuickAmounts);
   const [editingAmounts, setEditingAmounts] = useState(false);
@@ -74,6 +78,28 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
     setLastReceipt({ name: `${selected.first_name} ${selected.last_name}`, amount: amt, balance: data.new_balance, note });
     setAmount("");
     setNote("");
+  };
+
+  const handleSquareCharge = () => {
+    const amt = parseFloat(fundAmount);
+    if (isNaN(amt) || amt <= 0) { setFundError("Enter a valid amount."); return; }
+    if (!selected) return;
+    setFundError("");
+
+    const amountCents = Math.round(amt * 100);
+    const callbackUrl = `${window.location.origin}/admin/store/pos-callback`;
+    const clientTransactionId = `${selected.id}___${amountCents}___${Date.now()}`;
+
+    const payload = JSON.stringify({
+      amount_money: { amount: amountCents, currency_code: "USD" },
+      callback_url: callbackUrl,
+      client_transaction_id: clientTransactionId,
+      version: "1.3",
+      notes: `Store credit – ${selected.first_name} ${selected.last_name}`,
+    });
+
+    const encoded = btoa(payload);
+    window.location.href = `square-commerce-v1://payment/create?data=${encodeURIComponent(encoded)}`;
   };
 
   const openEdit = () => {
@@ -298,6 +324,34 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
                 </div>
               ) : (
                 <p className="text-center text-gray-400 text-sm py-4">No balance available.</p>
+              )}
+
+              {/* Add Funds via Square POS */}
+              {canEdit && (
+                <div className="border-t border-gray-100 pt-4 space-y-2">
+                  <p className="text-xs font-medium text-gray-500">Add Funds via Square</p>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium">$</span>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={fundAmount}
+                      onChange={e => { setFundAmount(e.target.value); setFundError(""); }}
+                      placeholder="0.00"
+                      className="w-full border border-gray-300 rounded-xl pl-7 pr-3 py-3 text-lg font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-jubilee-gold text-center"
+                    />
+                  </div>
+                  {fundError && <p className="text-red-500 text-xs">{fundError}</p>}
+                  <button
+                    onClick={handleSquareCharge}
+                    disabled={!fundAmount}
+                    className="w-full bg-jubilee-navy text-white py-3 rounded-xl font-bold text-sm hover:bg-jubilee-gold transition-colors disabled:opacity-50"
+                  >
+                    💳 Charge with Square
+                  </button>
+                  <p className="text-xs text-gray-400 text-center">Card · Apple Pay · Google Pay</p>
+                </div>
               )}
             </div>
           </div>
