@@ -74,6 +74,7 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
     Object.fromEntries(campers.map(c => [c.id, c.store_balance]))
   );
   const [saving, setSaving] = useState(false);
+  const [fundsOpen, setFundsOpen] = useState(false);
   const [checkinNotes, setCheckinNotes] = useState("");
   const [pickupNotes, setPickupNotes] = useState("");
 
@@ -122,6 +123,7 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
     setCheckinNotes(rec?.checkin_notes ?? "");
     setPickupNotes(rec?.pickup_notes ?? "");
     // Reset payment forms
+    setFundsOpen(false);
     setStoreAmt("");
     setStoreNote("");
     setStoreError("");
@@ -417,10 +419,14 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
               {/* ── Registration Payments (directors/admins only) ── */}
               {showFinances && (
                 <div className="border border-gray-200 rounded-xl overflow-hidden">
-                  <div className="bg-jubilee-navy px-4 py-2.5">
-                    <p className="text-xs font-semibold text-white uppercase tracking-wide">💳 Registration Payments</p>
-                  </div>
-                  <div className="p-4 space-y-4">
+                  <button
+                    onClick={() => setFundsOpen(o => !o)}
+                    className="w-full bg-jubilee-navy px-4 py-2.5 flex items-center justify-between"
+                  >
+                    <p className="text-xs font-semibold text-white uppercase tracking-wide">💳 Add Funds</p>
+                    <span className="text-white/60 text-xs">{fundsOpen ? "▲" : "▼"}</span>
+                  </button>
+                  {fundsOpen && <div className="p-4 space-y-4">
 
                     {/* ── Tuition Balance ── */}
                     <div className="space-y-2">
@@ -531,7 +537,7 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
                       </div>
                       <p className="text-xs text-gray-400 text-center">Square accepts card · Apple Pay · Google Pay</p>
                     </div>
-                  </div>
+                  </div>}
                 </div>
               )}
 
