@@ -30,7 +30,7 @@ export default async function AdminInfoPage() {
     <AppShell role={profile.role} userName={profile.name}>
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-jubilee-green-dark">Info Pages</h1>
-        <StaffAnnouncementsEditor initialAnnouncements={staffAnnouncements ?? []} />
+        <StaffAnnouncementsEditor initialAnnouncements={staffAnnouncements ?? []} directorName={profile.name} directorId={user.id} />
         <InfoEditor pages={pages ?? []} announcements={announcements ?? []} directorId={user.id} />
       </div>
     </AppShell>

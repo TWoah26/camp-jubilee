@@ -21,14 +21,18 @@ interface Announcement {
 
 interface Props {
   initialAnnouncements: Announcement[];
+  directorName?: string;
+  directorId?: string;
 }
 
-export default function StaffAnnouncementsEditor({ initialAnnouncements }: Props) {
+export default function StaffAnnouncementsEditor({ initialAnnouncements, directorName, directorId }: Props) {
   const [announcements, setAnnouncements] = useState(initialAnnouncements);
   const [form, setForm] = useState({ title: "", body: "" });
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const [commentSaving, setCommentSaving] = useState<string | null>(null);
 
   const post = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +68,35 @@ export default function StaffAnnouncementsEditor({ initialAnnouncements }: Props
       body: JSON.stringify({ id }),
     });
     setAnnouncements(prev => prev.filter(a => a.id !== id));
+  };
+
+  const addComment = async (announcementId: string) => {
+    const body = commentDrafts[announcementId]?.trim();
+    if (!body) return;
+    setCommentSaving(announcementId);
+    try {
+      const res = await fetch(`/api/staff/announcements/${announcementId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body }),
+      });
+      const data = await res.json();
+      if (data.id) {
+        const newComment: Comment = {
+          ...data,
+          commenter: { name: directorName ?? "Director" },
+        };
+        setAnnouncements(prev =>
+          prev.map(a => a.id === announcementId
+            ? { ...a, comments: [...(a.comments ?? []), newComment] }
+            : a
+          )
+        );
+        setCommentDrafts(prev => ({ ...prev, [announcementId]: "" }));
+      }
+    } finally {
+      setCommentSaving(null);
+    }
   };
 
   return (
@@ -111,7 +144,7 @@ export default function StaffAnnouncementsEditor({ initialAnnouncements }: Props
                   >
                     {a.comments?.length
                       ? `${a.comments.length} comment${a.comments.length !== 1 ? "s" : ""} ${expanded === a.id ? "▲" : "▼"}`
-                      : "No comments yet"}
+                      : expanded === a.id ? "Close ▲" : "Reply ▼"}
                   </button>
                 </div>
                 <button onClick={() => remove(a.id)} className="text-red-400 hover:text-red-600 text-xs shrink-0">
@@ -119,15 +152,36 @@ export default function StaffAnnouncementsEditor({ initialAnnouncements }: Props
                 </button>
               </div>
 
-              {expanded === a.id && a.comments && a.comments.length > 0 && (
-                <div className="border-t border-gray-100 bg-gray-50 px-3 py-2 space-y-2">
-                  {a.comments.map(c => (
-                    <div key={c.id} className="text-sm">
-                      <span className="font-medium text-jubilee-navy">{c.commenter?.name ?? "Staff"}</span>
-                      <span className="text-gray-400 text-xs ml-2">{formatDateTime(c.created_at)}</span>
-                      <p className="text-gray-600 mt-0.5">{c.body}</p>
+              {expanded === a.id && (
+                <div className="border-t border-gray-100 bg-gray-50 px-3 py-3 space-y-3">
+                  {(a.comments ?? []).length > 0 && (
+                    <div className="space-y-2">
+                      {(a.comments ?? []).map(c => (
+                        <div key={c.id} className="text-sm">
+                          <span className="font-medium text-jubilee-navy">{c.commenter?.name ?? "Staff"}</span>
+                          <span className="text-gray-400 text-xs ml-2">{formatDateTime(c.created_at)}</span>
+                          <p className="text-gray-600 mt-0.5">{c.body}</p>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={commentDrafts[a.id] ?? ""}
+                      onChange={e => setCommentDrafts(prev => ({ ...prev, [a.id]: e.target.value }))}
+                      onKeyDown={e => e.key === "Enter" && addComment(a.id)}
+                      placeholder="Reply as director…"
+                      className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-jubilee-gold bg-white"
+                    />
+                    <button
+                      onClick={() => addComment(a.id)}
+                      disabled={commentSaving === a.id || !commentDrafts[a.id]?.trim()}
+                      className="bg-jubilee-navy text-white px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-jubilee-gold transition-colors"
+                    >
+                      {commentSaving === a.id ? "…" : "Reply"}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
