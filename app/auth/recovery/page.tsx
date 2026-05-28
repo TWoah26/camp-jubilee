@@ -11,6 +11,7 @@ function RecoveryInner() {
 
   useEffect(() => {
     const supabase = createClient();
+    const timeout = setTimeout(() => setStatus("error"), 15000);
 
     async function handleRecovery() {
       // --- Case 1: PKCE flow — ?code=xxx in query string ---
@@ -39,7 +40,7 @@ function RecoveryInner() {
       setStatus("error");
     }
 
-    handleRecovery();
+    handleRecovery().finally(() => clearTimeout(timeout));
   }, []);
 
   if (status === "error") {
