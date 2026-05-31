@@ -89,6 +89,7 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
     const callbackUrl = `${window.location.origin}/admin/store/pos-callback`;
     const clientTransactionId = `${selected.id}___${amountCents}___${Date.now()}`;
     const payload = JSON.stringify({
+      client_id: process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID,
       amount_money: { amount: amountCents, currency_code: "USD" },
       callback_url: callbackUrl,
       client_transaction_id: clientTransactionId,
