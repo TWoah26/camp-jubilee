@@ -95,8 +95,7 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
       version: "1.3",
       notes: `Store credit - ${selected.first_name} ${selected.last_name}`,
     });
-    const encoded = btoa(payload);
-    window.location.href = `square-commerce-v1://payment/create?data=${encodeURIComponent(encoded)}`;
+    window.location.href = `square-commerce-v1://payment/create?data=${encodeURIComponent(payload)}`;
   };
 
   const openEdit = () => {
