@@ -31,13 +31,13 @@ export async function POST(req: Request) {
     }
 
     // Record transaction and deduct balance
-    const { error: txError } = await supabase.from("store_transactions").insert({
+    const { data: tx, error: txError } = await supabase.from("store_transactions").insert({
       camper_id,
       amount,
       type: "debit",
       note: note?.trim() || "Store purchase",
       staff_id: user.id,
-    });
+    }).select("id").single();
     if (txError) return NextResponse.json({ error: txError.message }, { status: 500 });
 
     const { error: balError } = await supabase
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
       .eq("id", camper_id);
     if (balError) return NextResponse.json({ error: balError.message }, { status: 500 });
 
-    return NextResponse.json({ success: true, new_balance: camper.store_balance - amount });
+    return NextResponse.json({ success: true, new_balance: camper.store_balance - amount, transaction_id: tx.id });
   } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }

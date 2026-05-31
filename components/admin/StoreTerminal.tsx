@@ -19,8 +19,13 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [processing, setProcessing] = useState(false);
-  const [lastReceipt, setLastReceipt] = useState<{ name: string; amount: number; balance: number; note: string } | null>(null);
+  const [lastReceipt, setLastReceipt] = useState<{ name: string; amount: number; balance: number; note: string; txId: string } | null>(null);
   const [error, setError] = useState("");
+
+  // Recent transactions for selected camper
+  type Tx = { id: string; amount: number; type: string; note: string | null; created_at: string };
+  const [recentTx, setRecentTx] = useState<Tx[]>([]);
+  const [undoing, setUndoing] = useState<string | null>(null);
 
   // Add funds via Square POS
   const [fundAmount, setFundAmount] = useState("");
@@ -56,12 +61,21 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
     .filter(c => `${c.first_name} ${c.last_name}`.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`));
 
+  const loadRecentTx = (camperId: string) => {
+    fetch(`/api/admin/store/transaction?camper_id=${camperId}`)
+      .then(r => r.json())
+      .then(d => setRecentTx(d.transactions ?? []))
+      .catch(() => {});
+  };
+
   const selectCamper = (c: Camper) => {
     setSelected(c);
     setAmount("");
     setNote("");
     setError("");
     setLastReceipt(null);
+    setRecentTx([]);
+    loadRecentTx(c.id);
   };
 
   const handlePurchase = async () => {
@@ -84,9 +98,27 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
 
     setCampers(prev => prev.map(c => c.id === selected.id ? { ...c, store_balance: data.new_balance } : c));
     setSelected({ ...selected, store_balance: data.new_balance });
-    setLastReceipt({ name: `${selected.first_name} ${selected.last_name}`, amount: amt, balance: data.new_balance, note });
+    setLastReceipt({ name: `${selected.first_name} ${selected.last_name}`, amount: amt, balance: data.new_balance, note, txId: data.transaction_id });
     setAmount("");
     setNote("");
+    loadRecentTx(selected.id);
+  };
+
+  const handleUndo = async (txId: string) => {
+    if (!selected) return;
+    setUndoing(txId);
+    const res = await fetch("/api/admin/store/transaction", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: txId }),
+    });
+    const data = await res.json();
+    setUndoing(null);
+    if (!res.ok) { alert(data.error ?? "Could not undo transaction."); return; }
+    setCampers(prev => prev.map(c => c.id === selected.id ? { ...c, store_balance: data.new_balance } : c));
+    setSelected({ ...selected, store_balance: data.new_balance });
+    if (lastReceipt?.txId === txId) setLastReceipt(null);
+    loadRecentTx(selected.id);
   };
 
   const handleSquareCharge = () => {
@@ -209,6 +241,41 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
                   {lastReceipt.note && <p className="text-xs text-gray-500 mt-0.5 italic">{lastReceipt.note}</p>}
                   <p className="text-sm text-gray-600 mt-1">{formatCurrency(lastReceipt.amount)} charged</p>
                   <p className="text-xs text-gray-400">New balance: {formatCurrency(lastReceipt.balance)}</p>
+                  <button
+                    onClick={() => handleUndo(lastReceipt.txId)}
+                    disabled={undoing === lastReceipt.txId}
+                    className="mt-2 text-xs text-red-500 hover:text-red-700 underline disabled:opacity-50"
+                  >
+                    {undoing === lastReceipt.txId ? "Undoing…" : "↩ Undo this charge"}
+                  </button>
+                </div>
+              )}
+
+              {/* Recent transactions */}
+              {recentTx.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">Recent transactions</p>
+                  <div className="space-y-1">
+                    {recentTx.map(tx => (
+                      <div key={tx.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                        <div className="min-w-0">
+                          <span className={`text-sm font-medium ${tx.type === "debit" ? "text-gray-800" : "text-jubilee-green"}`}>
+                            {tx.type === "debit" ? "-" : "+"}{formatCurrency(tx.amount)}
+                          </span>
+                          {tx.note && <span className="text-xs text-gray-400 ml-1.5 truncate">{tx.note}</span>}
+                        </div>
+                        {tx.type === "debit" && (
+                          <button
+                            onClick={() => handleUndo(tx.id)}
+                            disabled={!!undoing}
+                            className="text-xs text-red-400 hover:text-red-600 ml-2 shrink-0 disabled:opacity-40"
+                          >
+                            {undoing === tx.id ? "…" : "Undo"}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
