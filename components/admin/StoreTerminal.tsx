@@ -351,7 +351,6 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
                     💳 Charge with Square
                   </button>
                   <p className="text-xs text-gray-400 text-center">Card · Apple Pay · Google Pay</p>
-                  <p className="text-xs text-gray-300 text-center break-all">ID: {squareAppId || "(not set)"}</p>
                 </div>
               )}
             </div>
