@@ -128,12 +128,14 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
     setFundError("");
     const amountCents = Math.round(amt * 100);
     const callbackUrl = `${window.location.origin}/admin/store/pos-callback`;
-    const clientTransactionId = `${selected.id}___${amountCents}___${Date.now()}`;
+    // Square truncates client_transaction_id to the UUID portion — store amount in
+    // localStorage so the callback page can retrieve it by camper ID.
+    localStorage.setItem(`sq_pending_${selected.id}`, JSON.stringify({ camperId: selected.id, amount: amt }));
     const payload = JSON.stringify({
       client_id: squareAppId,
       amount_money: { amount: amountCents, currency_code: "USD" },
       callback_url: callbackUrl,
-      client_transaction_id: clientTransactionId,
+      client_transaction_id: selected.id, // just the UUID; Square returns this back to us
       version: "1.3",
       notes: `Store credit - ${selected.first_name} ${selected.last_name}`,
       options: { supported_tender_types: ["CREDIT_CARD", "CASH", "OTHER", "SQUARE_GIFT_CARD"] },

@@ -10,27 +10,67 @@ function PosCallbackContent() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const paymentStatus = searchParams.get("status");
-    const clientTransactionId = searchParams.get("client_transaction_id");
-    const transactionId = searchParams.get("transaction_id");
+    // Square returns everything as a single ?data=<json> parameter
+    const dataParam = searchParams.get("data");
+
+    if (!dataParam) {
+      setStatus("error");
+      setMessage("No callback data received from Square.");
+      return;
+    }
+
+    let callbackData: { status?: string; transaction_id?: string; client_transaction_id?: string };
+    try {
+      callbackData = JSON.parse(dataParam);
+    } catch {
+      setStatus("error");
+      setMessage("Could not parse Square response.");
+      return;
+    }
+
+    const { status: paymentStatus, transaction_id: transactionId, client_transaction_id: camperId } = callbackData;
 
     if (paymentStatus === "cancel") {
       setStatus("cancelled");
       return;
     }
 
-    if (paymentStatus !== "ok" || !clientTransactionId) {
+    if (paymentStatus !== "ok" || !camperId) {
       setStatus("error");
       setMessage("Payment was not completed.");
       return;
     }
 
-    // Call the public Square callback endpoint — no user session required
+    // Read the pending amount from localStorage (saved before opening Square)
+    const pendingRaw = localStorage.getItem(`sq_pending_${camperId}`);
+    if (!pendingRaw) {
+      setStatus("error");
+      setMessage("Payment was processed in Square but the pending record was not found. Please add funds manually.");
+      return;
+    }
+
+    let amount: number;
+    try {
+      ({ amount } = JSON.parse(pendingRaw));
+      localStorage.removeItem(`sq_pending_${camperId}`);
+    } catch {
+      setStatus("error");
+      setMessage("Could not read pending payment data.");
+      return;
+    }
+
+    if (!amount || amount <= 0) {
+      setStatus("error");
+      setMessage("Invalid payment amount.");
+      return;
+    }
+
     fetch("/api/square/callback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        client_transaction_id: clientTransactionId,
+        camper_id: camperId,
+        amount,
         transaction_id: transactionId,
         status: paymentStatus,
       }),
@@ -39,7 +79,7 @@ function PosCallbackContent() {
       .then(data => {
         if (data.success) {
           setStatus("success");
-          setMessage(`$${data.amount?.toFixed(2)} added to store account.`);
+          setMessage(`$${amount.toFixed(2)} added to store account.`);
         } else {
           setStatus("error");
           setMessage(data.error ?? "Failed to credit account.");
@@ -91,7 +131,6 @@ function PosCallbackContent() {
             <div className="text-5xl mb-4">❌</div>
             <h2 className="font-bold text-jubilee-navy text-xl mb-2">Something went wrong</h2>
             <p className="text-gray-600 text-sm">{message}</p>
-            <p className="text-xs text-gray-400 mt-3 break-all">URL: {typeof window !== "undefined" ? window.location.href : ""}</p>
             <button
               onClick={() => router.push("/admin/store")}
               className="mt-6 bg-jubilee-navy text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-jubilee-gold transition-colors"

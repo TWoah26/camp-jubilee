@@ -2,40 +2,19 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 // Public endpoint — no user session required.
-// Square redirects here after a payment; we credit the camper's store account.
-// Security: client_transaction_id is a UUID+amount+timestamp that only our own
-// app generates, and the timestamp must be within 2 hours.
+// Called by the pos-callback page after Square redirects back.
+// The camper_id and amount come from localStorage (saved before opening Square).
 
 export async function POST(req: Request) {
   try {
-    const { client_transaction_id, transaction_id, status } = await req.json();
+    const { camper_id, amount, transaction_id, status } = await req.json();
 
     if (status !== "ok") {
       return NextResponse.json({ error: "Payment not completed" }, { status: 400 });
     }
 
-    if (!client_transaction_id) {
-      return NextResponse.json({ error: "Missing transaction data" }, { status: 400 });
-    }
-
-    // Format: camperId___amountCents___timestamp
-    const parts = (client_transaction_id as string).split("___");
-    if (parts.length < 3) {
-      return NextResponse.json({ error: "Invalid transaction format" }, { status: 400 });
-    }
-
-    const [camperId, amountCentsStr, timestampStr] = parts;
-    const amountCents = parseInt(amountCentsStr);
-    const timestamp = parseInt(timestampStr);
-    const amount = amountCents / 100;
-
-    if (!camperId || isNaN(amount) || amount <= 0) {
-      return NextResponse.json({ error: "Invalid transaction data" }, { status: 400 });
-    }
-
-    // Reject if transaction is older than 2 hours (replay protection)
-    if (!isNaN(timestamp) && Date.now() - timestamp > 2 * 60 * 60 * 1000) {
-      return NextResponse.json({ error: "Transaction expired" }, { status: 400 });
+    if (!camper_id || !amount || amount <= 0) {
+      return NextResponse.json({ error: "Invalid payment data" }, { status: 400 });
     }
 
     const admin = await createAdminClient();
@@ -43,7 +22,7 @@ export async function POST(req: Request) {
     const { data: camper } = await admin
       .from("campers")
       .select("store_balance")
-      .eq("id", camperId)
+      .eq("id", camper_id)
       .single();
 
     if (!camper) return NextResponse.json({ error: "Camper not found" }, { status: 404 });
@@ -52,13 +31,13 @@ export async function POST(req: Request) {
 
     const [{ error: txError }, { error: balError }] = await Promise.all([
       admin.from("store_transactions").insert({
-        camper_id: camperId,
+        camper_id,
         amount,
         type: "credit",
         note: `Square POS payment${transaction_id ? ` (${transaction_id})` : ""}`,
         payment_method: "in_person",
       }),
-      admin.from("campers").update({ store_balance: newBalance }).eq("id", camperId),
+      admin.from("campers").update({ store_balance: newBalance }).eq("id", camper_id),
     ]);
 
     if (txError) return NextResponse.json({ error: txError.message }, { status: 500 });
