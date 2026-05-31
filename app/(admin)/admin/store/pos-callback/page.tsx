@@ -91,6 +91,7 @@ function PosCallbackContent() {
             <div className="text-5xl mb-4">❌</div>
             <h2 className="font-bold text-jubilee-navy text-xl mb-2">Something went wrong</h2>
             <p className="text-gray-600 text-sm">{message}</p>
+            <p className="text-xs text-gray-400 mt-3 break-all">URL: {typeof window !== "undefined" ? window.location.href : ""}</p>
             <button
               onClick={() => router.push("/admin/store")}
               className="mt-6 bg-jubilee-navy text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-jubilee-gold transition-colors"
