@@ -9,9 +9,10 @@ interface Props {
   campers: Camper[];
   role: string;
   initialQuickAmounts: number[];
+  squareAppId: string;
 }
 
-export default function StoreTerminal({ campers: initial, role, initialQuickAmounts }: Props) {
+export default function StoreTerminal({ campers: initial, role, initialQuickAmounts, squareAppId }: Props) {
   const [campers, setCampers] = useState(initial);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Camper | null>(null);
@@ -89,12 +90,13 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
     const callbackUrl = `${window.location.origin}/admin/store/pos-callback`;
     const clientTransactionId = `${selected.id}___${amountCents}___${Date.now()}`;
     const payload = JSON.stringify({
-      client_id: process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID,
+      client_id: squareAppId,
       amount_money: { amount: amountCents, currency_code: "USD" },
       callback_url: callbackUrl,
       client_transaction_id: clientTransactionId,
       version: "1.3",
       notes: `Store credit - ${selected.first_name} ${selected.last_name}`,
+      options: { supported_tender_types: ["CREDIT_CARD", "CASH", "OTHER", "SQUARE_GIFT_CARD"] },
     });
     window.location.href = `square-commerce-v1://payment/create?data=${encodeURIComponent(payload)}`;
   };

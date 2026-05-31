@@ -52,7 +52,7 @@ export default async function AdminStorePage() {
           <h1 className="text-2xl font-bold text-jubilee-green-dark">Camp Store</h1>
           <p className="text-gray-500 text-sm mt-1">{session.name} — select a camper to process a purchase</p>
         </div>
-        <StoreTerminal campers={campers ?? []} role={profile.role} initialQuickAmounts={quickAmounts} />
+        <StoreTerminal campers={campers ?? []} role={profile.role} initialQuickAmounts={quickAmounts} squareAppId={process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID ?? ""} />
       </div>
     </AppShell>
   );
