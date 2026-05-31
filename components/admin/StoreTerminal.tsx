@@ -44,6 +44,14 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  // Fetch latest quick amounts from DB on mount so store workers see director's changes
+  useEffect(() => {
+    fetch("/api/admin/store/settings")
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d.quick_amounts)) setQuickAmounts(d.quick_amounts); })
+      .catch(() => {});
+  }, []);
+
   const filtered = campers
     .filter(c => `${c.first_name} ${c.last_name}`.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`));
@@ -302,13 +310,26 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
                         </div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-3 gap-2">
-                        {quickAmounts.map(v => (
-                          <button key={v} type="button" onClick={() => setAmount(String(v))}
-                            className="py-2 border border-gray-200 rounded-lg text-sm font-medium hover:border-jubilee-gold hover:text-jubilee-navy transition-colors">
-                            {formatCurrency(v)}
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-3 gap-2">
+                          {quickAmounts.map(v => (
+                            <button key={v} type="button" onClick={() => {
+                              const current = Math.round((parseFloat(amount) || 0) * 100);
+                              const next = current + Math.round(v * 100);
+                              setAmount(String(next / 100));
+                              setError("");
+                            }}
+                              className="py-2 border border-gray-200 rounded-lg text-sm font-medium hover:border-jubilee-gold hover:text-jubilee-navy transition-colors">
+                              +{formatCurrency(v)}
+                            </button>
+                          ))}
+                        </div>
+                        {amount && parseFloat(amount) > 0 && (
+                          <button type="button" onClick={() => { setAmount(""); setError(""); }}
+                            className="w-full py-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors">
+                            ✕ Clear total
                           </button>
-                        ))}
+                        )}
                       </div>
                     )}
                   </div>
