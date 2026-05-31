@@ -194,16 +194,14 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
     if (isNaN(amt) || amt <= 0) { setStoreError("Enter a valid amount."); return; }
     setStoreError("");
     const amountCents = Math.round(amt * 100);
-    const callbackUrl = `${window.location.origin}/admin/store/pos-callback`;
-    const clientTransactionId = `store___${selected.id}___${amountCents}___${Date.now()}`;
-    // btoa requires ASCII-only — strip any accented/non-ASCII chars from the name
-    const safeName = `${selected.first_name} ${selected.last_name}`.replace(/[^\x00-\x7F]/g, "");
+    // Store metadata in localStorage — client_transaction_id must be ≤64 chars
+    const txId = `cj_${Date.now()}`;
+    localStorage.setItem("sq_pending", JSON.stringify({ type: "store", camper_id: selected.id, amount: amt }));
     const payload = JSON.stringify({
       amount_money: { amount: amountCents, currency_code: "USD" },
-      callback_url: callbackUrl,
-      client_transaction_id: clientTransactionId,
+      callback_url: `${window.location.origin}/admin/store/pos-callback`,
+      client_transaction_id: txId,
       version: "1.3",
-      notes: `Store credit - ${safeName}`,
     });
     window.location.href = `square-commerce-v1://payment/create?data=${encodeURIComponent(btoa(payload))}`;
   };
@@ -246,15 +244,13 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
     if (isNaN(amt) || amt <= 0) { setTuitionError("Enter a valid amount."); return; }
     setTuitionError("");
     const amountCents = Math.round(amt * 100);
-    const callbackUrl = `${window.location.origin}/admin/store/pos-callback`;
-    const clientTransactionId = `tuition___${selected.id}___${sessionId}___${amountCents}___${Date.now()}`;
-    const safeName = `${selected.first_name} ${selected.last_name}`.replace(/[^\x00-\x7F]/g, "");
+    const txId = `cj_${Date.now()}`;
+    localStorage.setItem("sq_pending", JSON.stringify({ type: "tuition", camper_id: selected.id, session_id: sessionId, amount: amt }));
     const payload = JSON.stringify({
       amount_money: { amount: amountCents, currency_code: "USD" },
-      callback_url: callbackUrl,
-      client_transaction_id: clientTransactionId,
+      callback_url: `${window.location.origin}/admin/store/pos-callback`,
+      client_transaction_id: txId,
       version: "1.3",
-      notes: `Tuition - ${safeName}`,
     });
     window.location.href = `square-commerce-v1://payment/create?data=${encodeURIComponent(btoa(payload))}`;
   };
