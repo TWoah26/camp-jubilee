@@ -32,7 +32,7 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // Public routes
-  const publicRoutes = ["/login", "/register", "/forgot-password", "/reset-password", "/welcome", "/auth/callback", "/auth/recovery", "/auth/reset", "/auth/accept-invite", "/api/auth/"];
+  const publicRoutes = ["/login", "/register", "/forgot-password", "/reset-password", "/welcome", "/auth/callback", "/auth/recovery", "/auth/reset", "/auth/accept-invite", "/api/auth/", "/api/square/", "/admin/store/pos-callback"];
   if (publicRoutes.some((r) => pathname.startsWith(r))) {
     return supabaseResponse;
   }

@@ -25,38 +25,21 @@ function PosCallbackContent() {
       return;
     }
 
-    // Format: camperId___amountCents___timestamp
-    const parts = clientTransactionId.split("___");
-    if (parts.length < 2) {
-      setStatus("error");
-      setMessage("Invalid transaction data.");
-      return;
-    }
-
-    const [camperId, amountCentsStr] = parts;
-    const amount = parseInt(amountCentsStr) / 100;
-
-    if (!camperId || isNaN(amount) || amount <= 0) {
-      setStatus("error");
-      setMessage("Could not parse payment data.");
-      return;
-    }
-
-    fetch("/api/admin/store/credit", {
+    // Call the public Square callback endpoint — no user session required
+    fetch("/api/square/callback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        camper_id: camperId,
-        amount,
-        payment_method: "in_person",
-        note: `Square in-person payment${transactionId ? ` (${transactionId})` : ""}`,
+        client_transaction_id: clientTransactionId,
+        transaction_id: transactionId,
+        status: paymentStatus,
       }),
     })
       .then(res => res.json())
       .then(data => {
         if (data.success) {
           setStatus("success");
-          setMessage(`$${amount.toFixed(2)} added to store account.`);
+          setMessage(`$${data.amount?.toFixed(2)} added to store account.`);
         } else {
           setStatus("error");
           setMessage(data.error ?? "Failed to credit account.");
