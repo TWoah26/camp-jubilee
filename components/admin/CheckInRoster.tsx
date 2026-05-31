@@ -187,25 +187,6 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
     finally { setStoreSaving(false); }
   };
 
-  // Square POS for store credit
-  const handleSquareStoreCredit = () => {
-    if (!selected) return;
-    const amt = parseFloat(storeAmt);
-    if (isNaN(amt) || amt <= 0) { setStoreError("Enter a valid amount."); return; }
-    setStoreError("");
-    const amountCents = Math.round(amt * 100);
-    // Store metadata in localStorage — client_transaction_id must be ≤64 chars
-    const txId = `cj_${Date.now()}`;
-    localStorage.setItem("sq_pending", JSON.stringify({ type: "store", camper_id: selected.id, amount: amt }));
-    const payload = JSON.stringify({
-      amount_money: { amount: amountCents, currency_code: "USD" },
-      callback_url: `${window.location.origin}/admin/store/pos-callback`,
-      client_transaction_id: txId,
-      version: "1.3",
-    });
-    window.location.href = `square-commerce-v1://payment/create?data=${encodeURIComponent(btoa(payload))}`;
-  };
-
   // Manual tuition payment
   const handleManualTuition = async () => {
     if (!selected) return;
@@ -235,24 +216,6 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
       setTuitionNote("");
     } catch { setTuitionError("Network error."); }
     finally { setTuitionSaving(false); }
-  };
-
-  // Square POS for tuition payment
-  const handleSquareTuition = () => {
-    if (!selected) return;
-    const amt = parseFloat(tuitionAmt);
-    if (isNaN(amt) || amt <= 0) { setTuitionError("Enter a valid amount."); return; }
-    setTuitionError("");
-    const amountCents = Math.round(amt * 100);
-    const txId = `cj_${Date.now()}`;
-    localStorage.setItem("sq_pending", JSON.stringify({ type: "tuition", camper_id: selected.id, session_id: sessionId, amount: amt }));
-    const payload = JSON.stringify({
-      amount_money: { amount: amountCents, currency_code: "USD" },
-      callback_url: `${window.location.origin}/admin/store/pos-callback`,
-      client_transaction_id: txId,
-      version: "1.3",
-    });
-    window.location.href = `square-commerce-v1://payment/create?data=${encodeURIComponent(btoa(payload))}`;
   };
 
   const rec = selected ? localRecords[selected.id] : null;
@@ -465,22 +428,13 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
                         />
                       </div>
                       {tuitionError && <p className="text-red-500 text-xs">{tuitionError}</p>}
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={handleManualTuition}
-                          disabled={tuitionSaving || !tuitionAmt}
-                          className="bg-gray-100 text-gray-700 py-2 rounded-lg text-xs font-medium hover:bg-gray-200 disabled:opacity-50 transition-colors"
-                        >
-                          {tuitionSaving ? "Recording…" : "💵 Cash / Check"}
-                        </button>
-                        <button
-                          onClick={handleSquareTuition}
-                          disabled={!tuitionAmt}
-                          className="bg-jubilee-navy text-white py-2 rounded-lg text-xs font-medium hover:bg-jubilee-gold disabled:opacity-50 transition-colors"
-                        >
-                          💳 Charge Square
-                        </button>
-                      </div>
+                      <button
+                        onClick={handleManualTuition}
+                        disabled={tuitionSaving || !tuitionAmt}
+                        className="w-full bg-gray-100 text-gray-700 py-2 rounded-lg text-xs font-medium hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                      >
+                        {tuitionSaving ? "Recording…" : "💵 Record Cash / Check"}
+                      </button>
                     </div>
 
                     <hr className="border-gray-100" />
@@ -518,23 +472,13 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
                         />
                       </div>
                       {storeError && <p className="text-red-500 text-xs">{storeError}</p>}
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={handleManualStoreCredit}
-                          disabled={storeSaving || !storeAmt}
-                          className="bg-gray-100 text-gray-700 py-2 rounded-lg text-xs font-medium hover:bg-gray-200 disabled:opacity-50 transition-colors"
-                        >
-                          {storeSaving ? "Adding…" : "💵 Cash / Check"}
-                        </button>
-                        <button
-                          onClick={handleSquareStoreCredit}
-                          disabled={!storeAmt}
-                          className="bg-jubilee-navy text-white py-2 rounded-lg text-xs font-medium hover:bg-jubilee-gold disabled:opacity-50 transition-colors"
-                        >
-                          💳 Charge Square
-                        </button>
-                      </div>
-                      <p className="text-xs text-gray-400 text-center">Square accepts card · Apple Pay · Google Pay</p>
+                      <button
+                        onClick={handleManualStoreCredit}
+                        disabled={storeSaving || !storeAmt}
+                        className="w-full bg-gray-100 text-gray-700 py-2 rounded-lg text-xs font-medium hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                      >
+                        {storeSaving ? "Adding…" : "💵 Record Cash / Check"}
+                      </button>
                     </div>
                   </div>}
                 </div>
