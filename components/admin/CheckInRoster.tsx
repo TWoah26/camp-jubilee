@@ -188,22 +188,25 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
   };
 
   // Square POS for store credit
+  const squareEncode = (payload: string) =>
+    btoa(unescape(encodeURIComponent(payload)));
+
   const handleSquareStoreCredit = () => {
     if (!selected) return;
     const amt = parseFloat(storeAmt);
     if (isNaN(amt) || amt <= 0) { setStoreError("Enter a valid amount."); return; }
     setStoreError("");
     const amountCents = Math.round(amt * 100);
-    const callbackUrl = `${window.location.origin}/admin/store/pos-callback?return_to=${encodeURIComponent("/admin/checkin")}`;
+    const callbackUrl = `${window.location.origin}/admin/store/pos-callback`;
     const clientTransactionId = `store___${selected.id}___${amountCents}___${Date.now()}`;
     const payload = JSON.stringify({
       amount_money: { amount: amountCents, currency_code: "USD" },
       callback_url: callbackUrl,
       client_transaction_id: clientTransactionId,
       version: "1.3",
-      notes: `Store credit – ${selected.first_name} ${selected.last_name}`,
+      notes: `Store credit - ${selected.first_name} ${selected.last_name}`,
     });
-    window.location.href = `square-commerce-v1://payment/create?data=${encodeURIComponent(btoa(payload))}`;
+    window.location.href = `square-commerce-v1://payment/create?data=${encodeURIComponent(squareEncode(payload))}`;
   };
 
   // Manual tuition payment
@@ -244,16 +247,16 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
     if (isNaN(amt) || amt <= 0) { setTuitionError("Enter a valid amount."); return; }
     setTuitionError("");
     const amountCents = Math.round(amt * 100);
-    const callbackUrl = `${window.location.origin}/admin/store/pos-callback?return_to=${encodeURIComponent("/admin/checkin")}`;
+    const callbackUrl = `${window.location.origin}/admin/store/pos-callback`;
     const clientTransactionId = `tuition___${selected.id}___${sessionId}___${amountCents}___${Date.now()}`;
     const payload = JSON.stringify({
       amount_money: { amount: amountCents, currency_code: "USD" },
       callback_url: callbackUrl,
       client_transaction_id: clientTransactionId,
       version: "1.3",
-      notes: `Tuition – ${selected.first_name} ${selected.last_name}`,
+      notes: `Tuition - ${selected.first_name} ${selected.last_name}`,
     });
-    window.location.href = `square-commerce-v1://payment/create?data=${encodeURIComponent(btoa(payload))}`;
+    window.location.href = `square-commerce-v1://payment/create?data=${encodeURIComponent(squareEncode(payload))}`;
   };
 
   const rec = selected ? localRecords[selected.id] : null;
