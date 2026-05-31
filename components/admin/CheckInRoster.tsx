@@ -188,9 +188,6 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
   };
 
   // Square POS for store credit
-  const squareEncode = (payload: string) =>
-    btoa(unescape(encodeURIComponent(payload)));
-
   const handleSquareStoreCredit = () => {
     if (!selected) return;
     const amt = parseFloat(storeAmt);
@@ -199,14 +196,16 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
     const amountCents = Math.round(amt * 100);
     const callbackUrl = `${window.location.origin}/admin/store/pos-callback`;
     const clientTransactionId = `store___${selected.id}___${amountCents}___${Date.now()}`;
+    // btoa requires ASCII-only — strip any accented/non-ASCII chars from the name
+    const safeName = `${selected.first_name} ${selected.last_name}`.replace(/[^\x00-\x7F]/g, "");
     const payload = JSON.stringify({
       amount_money: { amount: amountCents, currency_code: "USD" },
       callback_url: callbackUrl,
       client_transaction_id: clientTransactionId,
       version: "1.3",
-      notes: `Store credit - ${selected.first_name} ${selected.last_name}`,
+      notes: `Store credit - ${safeName}`,
     });
-    window.location.href = `square-commerce-v1://payment/create?data=${encodeURIComponent(squareEncode(payload))}`;
+    window.location.href = `square-commerce-v1://payment/create?data=${encodeURIComponent(btoa(payload))}`;
   };
 
   // Manual tuition payment
@@ -249,14 +248,15 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
     const amountCents = Math.round(amt * 100);
     const callbackUrl = `${window.location.origin}/admin/store/pos-callback`;
     const clientTransactionId = `tuition___${selected.id}___${sessionId}___${amountCents}___${Date.now()}`;
+    const safeName = `${selected.first_name} ${selected.last_name}`.replace(/[^\x00-\x7F]/g, "");
     const payload = JSON.stringify({
       amount_money: { amount: amountCents, currency_code: "USD" },
       callback_url: callbackUrl,
       client_transaction_id: clientTransactionId,
       version: "1.3",
-      notes: `Tuition - ${selected.first_name} ${selected.last_name}`,
+      notes: `Tuition - ${safeName}`,
     });
-    window.location.href = `square-commerce-v1://payment/create?data=${encodeURIComponent(squareEncode(payload))}`;
+    window.location.href = `square-commerce-v1://payment/create?data=${encodeURIComponent(btoa(payload))}`;
   };
 
   const rec = selected ? localRecords[selected.id] : null;
