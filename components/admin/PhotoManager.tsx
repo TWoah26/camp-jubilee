@@ -69,16 +69,28 @@ export default function PhotoManager({ photos, sessions, uploaderId, currentSess
     if (files.length === 0) return;
     setUploading(true);
     setProgress(0);
-    for (let i = 0; i < files.length; i++) {
+
+    const BATCH_SIZE = 5;
+    let completed = 0;
+
+    const uploadOne = async (file: File) => {
       const formData = new FormData();
-      formData.append("file", files[i]);
+      formData.append("file", file);
       formData.append("date_taken", dateTaken);
       formData.append("caption", caption);
       formData.append("uploaded_by", uploaderId);
       if (uploadSessionId) formData.append("session_id", uploadSessionId);
       await fetch("/api/media/upload", { method: "POST", body: formData });
-      setProgress(Math.round(((i + 1) / files.length) * 100));
+      completed += 1;
+      setProgress(Math.round((completed / files.length) * 100));
+    };
+
+    // Upload in parallel batches of BATCH_SIZE
+    for (let i = 0; i < files.length; i += BATCH_SIZE) {
+      const batch = files.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(uploadOne));
     }
+
     setUploading(false);
     setDone(true);
     setFiles([]);

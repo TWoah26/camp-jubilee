@@ -50,9 +50,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // Auto-tag via Rekognition face recognition
-    try {
-      const faceMatches = await searchFaces(publicUrl);
+    // Auto-tag via Rekognition face recognition — fire and forget so it
+    // doesn't block the upload response or slow down bulk uploads.
+    searchFaces(publicUrl).then(async (faceMatches) => {
       if (faceMatches.length > 0) {
         const alreadyTagged = new Set(camperIds);
         const newTags = faceMatches
@@ -62,9 +62,9 @@ export async function POST(req: Request) {
           await supabase.from("photo_tags").upsert(newTags, { onConflict: "photo_id,camper_id" });
         }
       }
-    } catch {
+    }).catch(() => {
       // Non-fatal — photo still uploaded even if face recognition fails
-    }
+    });
 
     // Fire and forget push notification
     if (camperIds.length > 0) {
