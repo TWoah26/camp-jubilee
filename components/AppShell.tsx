@@ -27,7 +27,7 @@ export default async function AppShell({ children, role, userName }: AppShellPro
   return (
     <div className="min-h-screen bg-jubilee-cream">
       <NavBar role={role} userName={userName} sessions={sessions} currentSessionId={currentSessionId} />
-      <main className="md:ml-60 pb-20 md:pb-0">
+      <main className="md:ml-60 pb-28 md:pb-0">
         <div className="max-w-5xl mx-auto p-4 md:p-8">
           {children}
         </div>

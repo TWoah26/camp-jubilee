@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -137,6 +138,10 @@ export default function NavBar({ role, userName, sessions = [], currentSessionId
       {/* Mobile bottom nav */}
       {links.length > 0 && (
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-jubilee-navy border-t border-white/10 z-50">
+          {/* Session switcher for directors/admins on mobile */}
+          {(role === "director" || role === "administrator") && sessions.length > 0 && (
+            <MobileSessionSwitcher sessions={sessions} currentSessionId={currentSessionId} />
+          )}
           <div className="flex overflow-x-auto scrollbar-none">
             {links.map((link) => (
               <Link
@@ -157,5 +162,41 @@ export default function NavBar({ role, userName, sessions = [], currentSessionId
         </nav>
       )}
     </>
+  );
+}
+
+function MobileSessionSwitcher({ sessions, currentSessionId }: { sessions: Session[]; currentSessionId: string | null }) {
+  const [loading, setLoading] = useState(false);
+  const current = sessions.find(s => s.id === currentSessionId);
+
+  const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    setLoading(true);
+    await fetch("/api/admin/session/select", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: value || null }),
+    });
+    window.location.reload();
+  };
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-white/10 bg-white/5">
+      <span className="text-white/40 text-xs shrink-0">Session:</span>
+      <select
+        value={currentSessionId ?? ""}
+        onChange={handleChange}
+        disabled={loading}
+        className="flex-1 bg-transparent text-white text-xs py-0.5 focus:outline-none disabled:opacity-50 cursor-pointer appearance-none truncate"
+      >
+        <option value="" className="bg-jubilee-navy">— select a session —</option>
+        {sessions.map(s => (
+          <option key={s.id} value={s.id} className="bg-jubilee-navy">
+            {s.name}{s.is_active ? " ●" : s.session_closed ? " ✓" : ""}
+          </option>
+        ))}
+      </select>
+      {current && <span className="text-jubilee-gold text-xs shrink-0">✓</span>}
+    </div>
   );
 }
