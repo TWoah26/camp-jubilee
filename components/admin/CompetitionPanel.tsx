@@ -174,7 +174,7 @@ export default function CompetitionPanel({
         if (isNaN(pts)) continue;
         const color = cabinColorMap[cabin];
         if (!color) continue;
-        entries.push({ color, points: pts, cabin_name: cabin });
+        entries.push({ color, points: pts * 5, cabin_name: cabin });
       }
       if (entries.length === 0) return null;
       return entries;
@@ -477,7 +477,7 @@ export default function CompetitionPanel({
                   </div>
                 ) : (
                   <>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Score Each Cabin (1–10)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Score Each Cabin (1–10 × 5 pts)</label>
                     <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                       {availableCabins.map(cabin => {
                         const color = cabinColorMap[cabin];
@@ -503,7 +503,7 @@ export default function CompetitionPanel({
                         );
                       })}
                     </div>
-                    <p className="text-xs text-gray-400 mt-2">Scores roll up to each cabin&apos;s color team total.</p>
+                    <p className="text-xs text-gray-400 mt-2">Each score is multiplied by 5 (e.g. 10 → 50 pts). Rolls up to each cabin&apos;s color team total.</p>
                   </>
                 )}
               </div>
