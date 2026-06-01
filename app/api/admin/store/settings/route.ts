@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -22,6 +22,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Must provide exactly 6 amounts" }, { status: 400 });
   }
 
-  await supabase.from("store_settings").upsert({ id: 1, quick_amounts });
+  // Use admin client to bypass RLS on the settings table
+  const admin = await createAdminClient();
+  const { error } = await admin.from("store_settings").upsert({ id: 1, quick_amounts });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
   return NextResponse.json({ success: true });
 }

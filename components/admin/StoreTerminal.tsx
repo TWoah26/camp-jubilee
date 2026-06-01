@@ -153,14 +153,21 @@ export default function StoreTerminal({ campers: initial, role, initialQuickAmou
     const parsed = draftAmounts.map(v => parseFloat(v));
     if (parsed.some(v => isNaN(v) || v <= 0)) return;
     setSavingAmounts(true);
-    await fetch("/api/admin/store/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ quick_amounts: parsed }),
-    });
-    setQuickAmounts(parsed);
-    setEditingAmounts(false);
-    setSavingAmounts(false);
+    try {
+      const res = await fetch("/api/admin/store/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quick_amounts: parsed }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error ?? "Failed to save amounts."); return; }
+      setQuickAmounts(parsed);
+      setEditingAmounts(false);
+    } catch {
+      alert("Network error — could not save amounts.");
+    } finally {
+      setSavingAmounts(false);
+    }
   };
 
   return (
