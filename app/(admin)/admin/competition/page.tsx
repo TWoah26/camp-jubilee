@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getAdminSessionId } from "@/lib/admin-session";
 import AppShell from "@/components/AppShell";
 import CompetitionPanel from "@/components/admin/CompetitionPanel";
@@ -30,17 +30,21 @@ export default async function CompetitionPage() {
     );
   }
 
+  // Use admin client for competition tables — RLS is enabled on these tables
+  // and there are no read policies; auth is already verified above.
+  const admin = await createAdminClient();
+
   const [eventsRes, scoresRes, cabinColorsRes, campersRes] = await Promise.all([
-    supabase
+    admin
       .from("competition_events")
       .select("*")
       .eq("session_id", sessionId)
       .order("created_at", { ascending: false }),
-    supabase
+    admin
       .from("competition_scores")
       .select("*")
       .eq("session_id", sessionId),
-    supabase
+    admin
       .from("competition_cabin_colors")
       .select("cabin_name, color")
       .eq("session_id", sessionId),

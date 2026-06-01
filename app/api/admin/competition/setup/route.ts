@@ -22,13 +22,14 @@ export async function GET() {
     const sessionId = await getAdminSessionId();
     if (!sessionId) return NextResponse.json({ cabins: [], assignments: [] });
 
+    const admin = await createAdminClient();
     const [campersRes, assignmentsRes] = await Promise.all([
       supabase
         .from("campers")
         .select("cabin")
         .eq("session_id", sessionId)
         .not("cabin", "is", null),
-      supabase
+      admin
         .from("competition_cabin_colors")
         .select("cabin_name, color")
         .eq("session_id", sessionId),
