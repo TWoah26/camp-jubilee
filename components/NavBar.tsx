@@ -32,6 +32,7 @@ const adminLinks = [
   { href: "/admin/messages", label: "Messages", icon: "✉️" },
   { href: "/admin/photos", label: "Photos", icon: "📸" },
   { href: "/admin/store", label: "Camp Store", icon: "🛍️" },
+  { href: "/admin/competition", label: "Color War", icon: "🏆" },
   { href: "/admin/finances", label: "Finances", icon: "💰" },
   { href: "/admin/session", label: "Session", icon: "⚙️" },
   { href: "/admin/info", label: "Info Pages", icon: "📝" },
