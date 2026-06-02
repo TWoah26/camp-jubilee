@@ -351,6 +351,9 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
                   camperName={`${selected.first_name} ${selected.last_name}`}
                   currentPhotoUrl={selected.photo_url}
                   size="sm"
+                  onPhotoUpdate={(newUrl) =>
+                    setSelected(prev => prev ? { ...prev, photo_url: newUrl } : prev)
+                  }
                 />
               </div>
               <div className="flex-1 min-w-0">

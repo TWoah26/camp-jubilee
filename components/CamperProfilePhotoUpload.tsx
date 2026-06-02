@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 interface Props {
   camperId: string;
   camperName: string;
   currentPhotoUrl?: string | null;
   size?: "sm" | "md";
+  onPhotoUpdate?: (newUrl: string) => void;
 }
 
 type Mode = "idle" | "menu" | "camera" | "crop";
@@ -14,7 +16,8 @@ type Mode = "idle" | "menu" | "camera" | "crop";
 const CROP_SIZE = 280; // px — crop preview container
 const OUTPUT_SIZE = 600; // px — exported canvas resolution
 
-export default function CamperProfilePhotoUpload({ camperId, camperName, currentPhotoUrl, size = "md" }: Props) {
+export default function CamperProfilePhotoUpload({ camperId, camperName, currentPhotoUrl, size = "md", onPhotoUpdate }: Props) {
+  const router = useRouter();
   const [photoUrl, setPhotoUrl] = useState<string | null>(currentPhotoUrl ?? null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -220,9 +223,13 @@ export default function CamperProfilePhotoUpload({ camperId, camperName, current
       if (!res.ok) {
         setError(String(json.error ?? `Upload failed (${res.status})`));
       } else {
-        setPhotoUrl(`${json.url}?t=${Date.now()}`);
+        const newUrl = String(json.url);
+        setPhotoUrl(newUrl);
+        onPhotoUpdate?.(newUrl);
         closeCropModal();
         setMode("idle");
+        // Revalidate server data so navigating away and back shows the new photo
+        router.refresh();
       }
     } catch (err) {
       clearTimeout(timeout);
