@@ -346,6 +346,7 @@ export default function CheckInRoster({ campers, sessionId, sessionName, session
             <div className="flex items-center gap-3 p-5 border-b border-gray-100">
               <div className="shrink-0">
                 <CamperProfilePhotoUpload
+                  key={selected.id}
                   camperId={selected.id}
                   camperName={`${selected.first_name} ${selected.last_name}`}
                   currentPhotoUrl={selected.photo_url}

@@ -36,6 +36,11 @@ export default function CamperProfilePhotoUpload({ camperId, camperName, current
   const cropDragRef = useRef<{ startX: number; startY: number; offX: number; offY: number } | null>(null);
   const cropPinchRef = useRef<number | null>(null);
 
+  // Sync if parent passes a new photo URL (e.g. different camper selected in a list)
+  useEffect(() => {
+    setPhotoUrl(currentPhotoUrl ?? null);
+  }, [currentPhotoUrl]);
+
   const initials = camperName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 
   // ─── Camera helpers ─────────────────────────────────────────────────────────

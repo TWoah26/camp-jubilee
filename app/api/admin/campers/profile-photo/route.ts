@@ -40,9 +40,12 @@ export async function POST(req: Request) {
 
     const { data: { publicUrl } } = admin.storage.from("camp-photos").getPublicUrl(fileName);
 
+    // Append a timestamp so the browser never serves a stale cached image
+    const urlWithBuster = `${publicUrl}?t=${Date.now()}`;
+
     const { error: updateError } = await admin
       .from("campers")
-      .update({ photo_url: publicUrl })
+      .update({ photo_url: urlWithBuster })
       .eq("id", camperId);
 
     if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
@@ -52,7 +55,7 @@ export async function POST(req: Request) {
       .then(() => indexFace(camperId, publicUrl))
       .catch(() => {});
 
-    return NextResponse.json({ success: true, url: publicUrl });
+    return NextResponse.json({ success: true, url: urlWithBuster });
   } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
