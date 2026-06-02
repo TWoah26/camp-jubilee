@@ -28,13 +28,13 @@ export default function CamperProfilePhotoUpload({ camperId, camperName, current
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Crop state
-  const [cropSrc, setCropSrc] = useState<string | null>(null);        // object URL
-  const [cropNatural, setCropNatural] = useState({ w: 1, h: 1 });     // natural image size
-  const [cropPan, setCropPan] = useState({ x: 0, y: 0 });             // pan offset
+  // Crop state — offset is the top-left position of the image within the container
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropNatural, setCropNatural] = useState({ w: 1, h: 1 });
+  const [cropOffset, setCropOffset] = useState({ x: 0, y: 0 });
   const [cropScale, setCropScale] = useState(1);
-  const cropDragRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
-  const cropPinchRef = useRef<number | null>(null); // initial pinch distance
+  const cropDragRef = useRef<{ startX: number; startY: number; offX: number; offY: number } | null>(null);
+  const cropPinchRef = useRef<number | null>(null);
 
   const initials = camperName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 
@@ -97,39 +97,45 @@ export default function CamperProfilePhotoUpload({ camperId, camperName, current
 
   // ─── Crop helpers ────────────────────────────────────────────────────────────
 
-  const openCropModal = (src: string, natW: number, natH: number) => {
-    // Initial scale: image covers the entire crop square
-    const initialScale = Math.max(CROP_SIZE / natW, CROP_SIZE / natH);
-    setCropSrc(src);
-    setCropNatural({ w: natW, h: natH });
-    setCropScale(initialScale);
-    setCropPan({ x: 0, y: 0 });
-    setMode("crop");
+  // Clamp so the image always fully covers the crop square
+  const clampOffset = (x: number, y: number, scale: number, natW: number, natH: number) => {
+    const dispW = natW * scale;
+    const dispH = natH * scale;
+    return {
+      x: Math.min(0, Math.max(CROP_SIZE - dispW, x)),
+      y: Math.min(0, Math.max(CROP_SIZE - dispH, y)),
+    };
   };
 
-  const clampPan = (px: number, py: number, scale: number) => {
-    const dispW = cropNatural.w * scale;
-    const dispH = cropNatural.h * scale;
-    const maxX = Math.max(0, (dispW - CROP_SIZE) / 2);
-    const maxY = Math.max(0, (dispH - CROP_SIZE) / 2);
-    return { x: Math.max(-maxX, Math.min(maxX, px)), y: Math.max(-maxY, Math.min(maxY, py)) };
+  const openCropModal = (src: string, natW: number, natH: number) => {
+    const scale = Math.max(CROP_SIZE / natW, CROP_SIZE / natH);
+    const dispW = natW * scale;
+    const dispH = natH * scale;
+    // Center the image inside the crop square
+    const x = (CROP_SIZE - dispW) / 2;
+    const y = (CROP_SIZE - dispH) / 2;
+    setCropSrc(src);
+    setCropNatural({ w: natW, h: natH });
+    setCropScale(scale);
+    setCropOffset({ x, y });
+    setMode("crop");
   };
 
   const handleCropMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
-    cropDragRef.current = { startX: e.clientX, startY: e.clientY, panX: cropPan.x, panY: cropPan.y };
+    cropDragRef.current = { startX: e.clientX, startY: e.clientY, offX: cropOffset.x, offY: cropOffset.y };
   };
   const handleCropMouseMove = (e: React.MouseEvent) => {
     if (!cropDragRef.current) return;
-    const dx = e.clientX - cropDragRef.current.startX;
-    const dy = e.clientY - cropDragRef.current.startY;
-    setCropPan(clampPan(cropDragRef.current.panX + dx, cropDragRef.current.panY + dy, cropScale));
+    const x = cropDragRef.current.offX + (e.clientX - cropDragRef.current.startX);
+    const y = cropDragRef.current.offY + (e.clientY - cropDragRef.current.startY);
+    setCropOffset(clampOffset(x, y, cropScale, cropNatural.w, cropNatural.h));
   };
   const handleCropMouseUp = () => { cropDragRef.current = null; };
 
   const handleCropTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
-      cropDragRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, panX: cropPan.x, panY: cropPan.y };
+      cropDragRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, offX: cropOffset.x, offY: cropOffset.y };
       cropPinchRef.current = null;
     } else if (e.touches.length === 2) {
       cropDragRef.current = null;
@@ -141,9 +147,9 @@ export default function CamperProfilePhotoUpload({ camperId, camperName, current
   const handleCropTouchMove = (e: React.TouchEvent) => {
     e.preventDefault();
     if (e.touches.length === 1 && cropDragRef.current) {
-      const dx = e.touches[0].clientX - cropDragRef.current.startX;
-      const dy = e.touches[0].clientY - cropDragRef.current.startY;
-      setCropPan(clampPan(cropDragRef.current.panX + dx, cropDragRef.current.panY + dy, cropScale));
+      const x = cropDragRef.current.offX + (e.touches[0].clientX - cropDragRef.current.startX);
+      const y = cropDragRef.current.offY + (e.touches[0].clientY - cropDragRef.current.startY);
+      setCropOffset(clampOffset(x, y, cropScale, cropNatural.w, cropNatural.h));
     } else if (e.touches.length === 2 && cropPinchRef.current !== null) {
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -153,7 +159,7 @@ export default function CamperProfilePhotoUpload({ camperId, camperName, current
       const minScale = Math.max(CROP_SIZE / cropNatural.w, CROP_SIZE / cropNatural.h);
       const newScale = Math.max(minScale, Math.min(cropScale * ratio, minScale * 5));
       setCropScale(newScale);
-      setCropPan(p => clampPan(p.x, p.y, newScale));
+      setCropOffset(o => clampOffset(o.x, o.y, newScale, cropNatural.w, cropNatural.h));
     }
   };
   const handleCropTouchEnd = () => { cropDragRef.current = null; cropPinchRef.current = null; };
@@ -162,31 +168,28 @@ export default function CamperProfilePhotoUpload({ camperId, camperName, current
     const minScale = Math.max(CROP_SIZE / cropNatural.w, CROP_SIZE / cropNatural.h);
     const newScale = Math.max(minScale, Math.min(cropScale + delta, minScale * 5));
     setCropScale(newScale);
-    setCropPan(p => clampPan(p.x, p.y, newScale));
+    setCropOffset(o => clampOffset(o.x, o.y, newScale, cropNatural.w, cropNatural.h));
   };
 
   const confirmCrop = useCallback(async () => {
     if (!cropSrc) return;
     const img = new Image();
-    img.onload = async () => {
+    img.onload = () => {
       const canvas = document.createElement("canvas");
       canvas.width = OUTPUT_SIZE;
       canvas.height = OUTPUT_SIZE;
       const ctx = canvas.getContext("2d")!;
-
-      // Compute what region of the original image is visible in the crop area
-      const srcX = cropNatural.w / 2 - (CROP_SIZE / 2 + cropPan.x) / cropScale;
-      const srcY = cropNatural.h / 2 - (CROP_SIZE / 2 + cropPan.y) / cropScale;
+      // offset is the top-left of the displayed image in container coords
+      // so the top-left of the source image in image-pixel coords is:
+      const srcX = -cropOffset.x / cropScale;
+      const srcY = -cropOffset.y / cropScale;
       const srcW = CROP_SIZE / cropScale;
       const srcH = CROP_SIZE / cropScale;
-
       ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
-      canvas.toBlob(blob => {
-        if (blob) uploadBlob(blob);
-      }, "image/jpeg", 0.88);
+      canvas.toBlob(blob => { if (blob) uploadBlob(blob); }, "image/jpeg", 0.88);
     };
     img.src = cropSrc;
-  }, [cropSrc, cropNatural, cropPan, cropScale]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cropSrc, cropOffset, cropScale]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Upload ──────────────────────────────────────────────────────────────────
 
@@ -246,16 +249,17 @@ export default function CamperProfilePhotoUpload({ camperId, camperName, current
     img.src = url;
   };
 
-  // ─── Image transform style ───────────────────────────────────────────────────
+  // ─── Image style — only set width, height is auto to preserve aspect ratio ──
 
   const cropImgStyle: React.CSSProperties = {
     position: "absolute",
+    left: cropOffset.x,
+    top: cropOffset.y,
     width: cropNatural.w * cropScale,
-    height: cropNatural.h * cropScale,
-    left: "50%",
-    top: "50%",
-    transform: `translate(calc(-50% + ${cropPan.x}px), calc(-50% + ${cropPan.y}px))`,
+    height: "auto",
+    maxWidth: "none",
     userSelect: "none",
+    pointerEvents: "none",
   };
 
   // ─── Render ──────────────────────────────────────────────────────────────────
@@ -363,7 +367,7 @@ export default function CamperProfilePhotoUpload({ camperId, camperName, current
                 <button onClick={() => adjustZoom(-cropScale * 0.1)}
                   className="w-9 h-9 rounded-full border border-gray-200 text-lg font-bold text-gray-600 hover:bg-gray-50 flex items-center justify-center">−</button>
                 <span className="text-xs text-gray-400 w-16 text-center">
-                  {Math.round((cropScale / Math.max(CROP_SIZE / cropNatural.w, CROP_SIZE / cropNatural.h)) * 100)}%
+                  {Math.round((cropScale / Math.max(CROP_SIZE / cropNatural.w, CROP_SIZE / cropNatural.h) - 1) * 100)}% zoom
                 </span>
                 <button onClick={() => adjustZoom(cropScale * 0.1)}
                   className="w-9 h-9 rounded-full border border-gray-200 text-lg font-bold text-gray-600 hover:bg-gray-50 flex items-center justify-center">+</button>
