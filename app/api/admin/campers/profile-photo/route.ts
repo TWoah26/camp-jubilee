@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { indexFace, removeFacesForCamper } from "@/lib/rekognition";
 
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     if (!file || !camperId) return NextResponse.json({ error: "Missing file or camper_id" }, { status: 400 });
 
     // Directors can update any camper; parents can only update their linked campers
-    if (!["director","administrator"].includes(profile.role)) {
+    if (!["director", "administrator"].includes(profile.role)) {
       const { data: link } = await supabase
         .from("parent_camper_links")
         .select("id")
@@ -28,31 +28,29 @@ export async function POST(req: Request) {
       if (!link) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const ext = file.name.split(".").pop() ?? "jpg";
-    const fileName = `profiles/${camperId}.${ext}`;
+    // Use admin client for storage + DB writes to bypass RLS
+    const admin = await createAdminClient();
+    const fileName = `profiles/${camperId}.jpg`;
 
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await admin.storage
       .from("camp-photos")
-      .upload(fileName, file, { contentType: file.type, upsert: true });
+      .upload(fileName, file, { contentType: "image/jpeg", upsert: true });
 
     if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 });
 
-    const { data: { publicUrl } } = supabase.storage.from("camp-photos").getPublicUrl(fileName);
+    const { data: { publicUrl } } = admin.storage.from("camp-photos").getPublicUrl(fileName);
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await admin
       .from("campers")
       .update({ photo_url: publicUrl })
       .eq("id", camperId);
 
     if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
 
-    // Re-index face in Rekognition (remove old, add new)
-    try {
-      await removeFacesForCamper(camperId);
-      await indexFace(camperId, publicUrl);
-    } catch {
-      // Non-fatal — photo still saved even if face indexing fails
-    }
+    // Re-index face in Rekognition (remove old, add new) — fire and forget
+    removeFacesForCamper(camperId)
+      .then(() => indexFace(camperId, publicUrl))
+      .catch(() => {});
 
     return NextResponse.json({ success: true, url: publicUrl });
   } catch {
