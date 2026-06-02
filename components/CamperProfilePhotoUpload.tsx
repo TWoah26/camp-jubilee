@@ -196,18 +196,30 @@ export default function CamperProfilePhotoUpload({ camperId, camperName, current
     const formData = new FormData();
     formData.append("file", blob, "profile.jpg");
     formData.append("camper_id", camperId);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
     try {
-      const res = await fetch("/api/admin/campers/profile-photo", { method: "POST", body: formData });
-      const json = await res.json();
+      const res = await fetch("/api/admin/campers/profile-photo", {
+        method: "POST",
+        body: formData,
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      let json: Record<string, unknown> = {};
+      try { json = await res.json(); } catch { /* non-JSON response */ }
       if (!res.ok) {
-        setError(json.error ?? "Upload failed");
+        setError(String(json.error ?? `Upload failed (${res.status})`));
       } else {
         setPhotoUrl(`${json.url}?t=${Date.now()}`);
         closeCropModal();
         setMode("idle");
       }
-    } catch {
-      setError("Upload failed — please try again.");
+    } catch (err) {
+      clearTimeout(timeout);
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setError(msg.includes("abort") ? "Upload timed out — try again." : `Upload failed: ${msg}`);
     } finally {
       setUploading(false);
     }
@@ -284,7 +296,7 @@ export default function CamperProfilePhotoUpload({ camperId, camperName, current
         <input ref={fileRef} type="file" accept="image/*" className="hidden"
           onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); if (fileRef.current) fileRef.current.value = ""; }} />
 
-        {error && mode === "idle" && <p className="text-xs text-red-500 text-center">{error}</p>}
+        {error && (mode === "idle" || mode === "menu") && <p className="text-xs text-red-500 text-center">{error}</p>}
       </div>
 
       {/* ── Camera modal ─────────────────────────────────────────────────────── */}
