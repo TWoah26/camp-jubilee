@@ -64,28 +64,60 @@ export default function PhotoManager({ photos, sessions, uploaderId, currentSess
     setDone(false);
   };
 
+  const [failedCount, setFailedCount] = useState(0);
+
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (files.length === 0) return;
     setUploading(true);
     setProgress(0);
+    setFailedCount(0);
 
     const BATCH_SIZE = 5;
     let completed = 0;
+    let failed = 0;
 
     const uploadOne = async (file: File) => {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("date_taken", dateTaken);
-      formData.append("caption", caption);
-      formData.append("uploaded_by", uploaderId);
-      if (uploadSessionId) formData.append("session_id", uploadSessionId);
-      await fetch("/api/media/upload", { method: "POST", body: formData });
-      completed += 1;
-      setProgress(Math.round((completed / files.length) * 100));
+      try {
+        // Step 1: Get a signed upload URL from our API (no file data, tiny request)
+        const urlRes = await fetch("/api/media/upload-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename: file.name, content_type: file.type }),
+        });
+        if (!urlRes.ok) throw new Error("Failed to get upload URL");
+        const { signed_url, public_url } = await urlRes.json();
+
+        // Step 2: PUT file directly to Supabase Storage — bypasses Vercel size limits
+        const putRes = await fetch(signed_url, {
+          method: "PUT",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
+        if (!putRes.ok) throw new Error("Storage upload failed");
+
+        // Step 3: Record metadata in DB (tiny request, no file)
+        await fetch("/api/media/record", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            public_url,
+            date_taken: dateTaken,
+            caption,
+            uploaded_by: uploaderId,
+            session_id: uploadSessionId || null,
+          }),
+        });
+      } catch {
+        failed += 1;
+        setFailedCount(failed);
+      } finally {
+        completed += 1;
+        setProgress(Math.round((completed / files.length) * 100));
+      }
     };
 
-    // Upload in parallel batches of BATCH_SIZE
+    // Upload in parallel batches
     for (let i = 0; i < files.length; i += BATCH_SIZE) {
       const batch = files.slice(i, i + BATCH_SIZE);
       await Promise.all(batch.map(uploadOne));
@@ -197,7 +229,13 @@ export default function PhotoManager({ photos, sessions, uploaderId, currentSess
           </div>
 
           {uploading && <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-jubilee-gold h-2 rounded-full transition-all" style={{ width: `${progress}%` }} /></div>}
-          {done && <p className="text-jubilee-green font-medium text-sm">✓ Upload complete!</p>}
+          {done && (
+            <p className={`font-medium text-sm ${failedCount > 0 ? "text-red-500" : "text-jubilee-green"}`}>
+              {failedCount > 0
+                ? `⚠️ ${files.length - failedCount} uploaded, ${failedCount} failed — try re-uploading the failed ones.`
+                : "✓ All photos uploaded!"}
+            </p>
+          )}
 
           <button type="submit" disabled={uploading || files.length === 0}
             className="w-full bg-jubilee-navy text-white py-2.5 rounded-lg font-medium hover:bg-jubilee-gold disabled:opacity-50">
