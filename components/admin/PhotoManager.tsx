@@ -64,72 +64,91 @@ export default function PhotoManager({ photos, sessions, uploaderId, currentSess
     setDone(false);
   };
 
-  const [failedCount, setFailedCount] = useState(0);
+  const [uploadSummary, setUploadSummary] = useState<{ succeeded: number; failed: number; errors: string[] } | null>(null);
+
+  // Compress image to JPEG ≤ 1920px wide, 85% quality — keeps files well under any upload limit
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      // Skip non-images or types the browser can't decode via canvas
+      if (!file.type.startsWith("image/") && file.type !== "") {
+        resolve(file);
+        return;
+      }
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        const MAX = 1920;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width >= height) { height = Math.round(height * MAX / width); width = MAX; }
+          else { width = Math.round(width * MAX / height); height = MAX; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          blob => resolve(blob ? new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }) : file),
+          "image/jpeg",
+          0.85
+        );
+      };
+      img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
+      img.src = objectUrl;
+    });
+  };
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (files.length === 0) return;
     setUploading(true);
     setProgress(0);
-    setFailedCount(0);
+    setUploadSummary(null);
 
-    const BATCH_SIZE = 5;
+    const BATCH_SIZE = 4;
     let completed = 0;
-    let failed = 0;
+    let succeeded = 0;
+    const errors: string[] = [];
 
     const uploadOne = async (file: File) => {
       try {
-        // Step 1: Get a signed upload URL from our API (no file data, tiny request)
-        const urlRes = await fetch("/api/media/upload-url", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ filename: file.name, content_type: file.type }),
-        });
-        if (!urlRes.ok) throw new Error("Failed to get upload URL");
-        const { signed_url, public_url } = await urlRes.json();
+        // Compress before sending — reduces iPhone photos from 5-8MB to ~300-800KB
+        const compressed = await compressImage(file);
 
-        // Step 2: PUT file directly to Supabase Storage — bypasses Vercel size limits
-        const putRes = await fetch(signed_url, {
-          method: "PUT",
-          headers: { "Content-Type": file.type },
-          body: file,
-        });
-        if (!putRes.ok) throw new Error("Storage upload failed");
+        const formData = new FormData();
+        formData.append("file", compressed);
+        formData.append("date_taken", dateTaken);
+        formData.append("caption", caption);
+        formData.append("uploaded_by", uploaderId);
+        if (uploadSessionId) formData.append("session_id", uploadSessionId);
 
-        // Step 3: Record metadata in DB (tiny request, no file)
-        await fetch("/api/media/record", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            public_url,
-            date_taken: dateTaken,
-            caption,
-            uploaded_by: uploaderId,
-            session_id: uploadSessionId || null,
-          }),
-        });
-      } catch {
-        failed += 1;
-        setFailedCount(failed);
+        const res = await fetch("/api/media/upload", { method: "POST", body: formData });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error ?? `HTTP ${res.status}`);
+        succeeded += 1;
+      } catch (err) {
+        errors.push(`${file.name}: ${err instanceof Error ? err.message : "unknown error"}`);
       } finally {
         completed += 1;
         setProgress(Math.round((completed / files.length) * 100));
       }
     };
 
-    // Upload in parallel batches
     for (let i = 0; i < files.length; i += BATCH_SIZE) {
-      const batch = files.slice(i, i + BATCH_SIZE);
-      await Promise.all(batch.map(uploadOne));
+      await Promise.all(files.slice(i, i + BATCH_SIZE).map(uploadOne));
     }
 
     setUploading(false);
     setDone(true);
+    setUploadSummary({ succeeded, failed: errors.length, errors });
     setFiles([]);
     setPreviews([]);
     setCaption("");
     if (fileRef.current) fileRef.current.value = "";
-    window.location.reload();
+
+    // Only reload to show new photos if at least some succeeded
+    if (succeeded > 0) setTimeout(() => window.location.reload(), 1500);
   };
 
   return (
@@ -229,12 +248,17 @@ export default function PhotoManager({ photos, sessions, uploaderId, currentSess
           </div>
 
           {uploading && <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-jubilee-gold h-2 rounded-full transition-all" style={{ width: `${progress}%` }} /></div>}
-          {done && (
-            <p className={`font-medium text-sm ${failedCount > 0 ? "text-red-500" : "text-jubilee-green"}`}>
-              {failedCount > 0
-                ? `⚠️ ${files.length - failedCount} uploaded, ${failedCount} failed — try re-uploading the failed ones.`
-                : "✓ All photos uploaded!"}
-            </p>
+          {done && uploadSummary && (
+            <div className={`text-sm rounded-lg p-3 ${uploadSummary.failed > 0 ? "bg-red-50 text-red-700" : "bg-green-50 text-jubilee-green"}`}>
+              {uploadSummary.failed === 0
+                ? `✓ All ${uploadSummary.succeeded} photos uploaded!`
+                : `⚠️ ${uploadSummary.succeeded} uploaded, ${uploadSummary.failed} failed:`}
+              {uploadSummary.errors.length > 0 && (
+                <ul className="mt-1 space-y-0.5 text-xs">
+                  {uploadSummary.errors.map((e, i) => <li key={i}>• {e}</li>)}
+                </ul>
+              )}
+            </div>
           )}
 
           <button type="submit" disabled={uploading || files.length === 0}
