@@ -291,7 +291,7 @@ export default function CompetitionPanel({
   return (
     <div className="flex flex-col gap-6 h-full">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold text-jubilee-green-dark">🏆 Color War</h1>
           <p className="text-gray-500 text-sm mt-1">Track activities and scores across all four color teams.</p>
@@ -317,7 +317,7 @@ export default function CompetitionPanel({
       </div>
 
       {/* Main layout: activity feed + leaderboard sidebar */}
-      <div className="flex gap-6 flex-1 min-h-0">
+      <div className="flex flex-col-reverse gap-6 md:flex-row flex-1 min-h-0">
 
         {/* Activity Feed */}
         <div className="flex-1 min-w-0 space-y-3 overflow-y-auto">
@@ -335,8 +335,8 @@ export default function CompetitionPanel({
         </div>
 
         {/* Leaderboard Sidebar */}
-        <div className="w-64 shrink-0">
-          <div className="sticky top-0 bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
+        <div className="w-full md:w-64 shrink-0">
+          <div className="md:sticky md:top-0 bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
             <h2 className="font-bold text-jubilee-navy text-sm uppercase tracking-wide">Leaderboard</h2>
             {rankedColors.map((color, i) => {
               const cfg = COLOR_CONFIG[color];
