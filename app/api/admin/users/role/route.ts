@@ -41,11 +41,15 @@ export async function PATCH(req: Request) {
 
     // If promoting to staff, auto-create + link a camper record if one doesn't exist
     if (role === "staff") {
-      const { data: existingCamper } = await admin
+      const { data: existingCamper, error: lookupErr } = await admin
         .from("campers")
         .select("id")
         .eq("user_id", user_id)
         .maybeSingle();
+
+      if (lookupErr) {
+        console.error("[role/staff] camper lookup error:", lookupErr.message);
+      }
 
       if (!existingCamper) {
         // Get their name from the users table
@@ -71,7 +75,7 @@ export async function PATCH(req: Request) {
           .eq("is_active", true)
           .maybeSingle();
 
-        await admin.from("campers").insert({
+        const { error: insertErr } = await admin.from("campers").insert({
           first_name: firstName,
           last_name: lastName,
           is_staff: true,
@@ -80,6 +84,15 @@ export async function PATCH(req: Request) {
           camper_code: camperCode,
           session_id: activeSession?.id ?? null,
         });
+
+        if (insertErr) {
+          console.error("[role/staff] camper insert error:", insertErr.message);
+          // Role was already updated — return a warning so the admin knows to retry
+          return NextResponse.json({
+            success: true,
+            warning: `Role updated, but could not create store account: ${insertErr.message}`,
+          });
+        }
       }
     }
 

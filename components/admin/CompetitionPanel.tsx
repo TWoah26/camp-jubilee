@@ -174,7 +174,7 @@ export default function CompetitionPanel({
         if (isNaN(pts)) continue;
         const color = cabinColorMap[cabin];
         if (!color) continue;
-        entries.push({ color, points: pts * 5, cabin_name: cabin });
+        entries.push({ color, points: pts * 5, cabin_name: cabin, note: String(pts) });
       }
       if (entries.length === 0) return null;
       return entries;
@@ -499,6 +499,11 @@ export default function CompetitionPanel({
                               placeholder="—"
                               className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-jubilee-navy"
                             />
+                            {cleanScores[cabin] && !isNaN(parseFloat(cleanScores[cabin])) && (
+                              <span className={`text-xs font-semibold tabular-nums w-14 text-right ${cfg ? cfg.text : "text-gray-500"}`}>
+                                = {parseFloat(cleanScores[cabin]) * 5} pts
+                              </span>
+                            )}
                           </div>
                         );
                       })}
@@ -708,7 +713,9 @@ function EventCard({ event, onDelete }: { event: CompEvent; onDelete?: (id: stri
               return (
                 <div key={s.id} className="flex items-center justify-between text-xs">
                   <span className="text-gray-600">{cfg.emoji} {s.cabin_name}</span>
-                  <span className={`font-semibold tabular-nums ${cfg.text}`}>{s.points}</span>
+                  <span className={`font-semibold tabular-nums ${cfg.text}`}>
+                    {s.note ? `${s.note} → ${s.points}` : s.points} pts
+                  </span>
                 </div>
               );
             })}

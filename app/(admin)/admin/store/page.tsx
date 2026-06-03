@@ -39,11 +39,25 @@ export default async function AdminStorePage() {
     );
   }
 
-  const { data: campers } = await supabase
-    .from("campers")
-    .select("id, first_name, last_name, cabin, photo_url, store_balance")
-    .eq("session_id", sessionId)
-    .order("last_name");
+  // Fetch session campers + staff (staff have null session_id so must be fetched separately)
+  const [{ data: sessionCampers }, { data: staffCampers }] = await Promise.all([
+    supabase
+      .from("campers")
+      .select("id, first_name, last_name, cabin, photo_url, store_balance")
+      .eq("session_id", sessionId)
+      .eq("is_staff", false)
+      .order("last_name"),
+    supabase
+      .from("campers")
+      .select("id, first_name, last_name, cabin, photo_url, store_balance")
+      .eq("is_staff", true)
+      .order("last_name"),
+  ]);
+
+  const campers = [
+    ...(sessionCampers ?? []),
+    ...(staffCampers ?? []),
+  ];
 
   return (
     <AppShell role={profile.role} userName={profile.name}>

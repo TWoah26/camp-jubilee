@@ -77,11 +77,14 @@ export default function UserManager({ users: initialUsers, currentUserId }: User
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: userId, role: newRole }),
       });
-      if (!res.ok) throw new Error("Failed to update role");
-    } catch {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to update role");
+      if (data.warning) alert(`⚠️ ${data.warning}`);
+    } catch (err) {
       // Revert on failure
       setUsers(prevUsers);
       setErrorId(userId);
+      alert(err instanceof Error ? err.message : "Failed to update role");
     } finally {
       setSavingId(null);
     }
