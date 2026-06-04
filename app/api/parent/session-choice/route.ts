@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const admin = await createAdminClient();
     if (refund_amount > 0) {
       let squareRefundId: string | null = null;
-      let squareRefundStatus: string = "failed";
+      let squareRefundStatus: string | null = null; // null = not applicable (cash/check)
       try {
         const { data: transactions } = await supabase
           .from("store_transactions")
@@ -44,6 +44,8 @@ export async function POST(req: Request) {
           .order("created_at", { ascending: false });
 
         if (transactions && transactions.length > 0) {
+          // There are Square transactions — attempt auto-refund, track result
+          squareRefundStatus = "failed"; // assume failed until we confirm success
           let remaining = refund_amount;
 
           for (const tx of transactions) {
@@ -65,7 +67,6 @@ export async function POST(req: Request) {
               reason: "Session end balance refund",
             });
 
-            // Capture the first refund ID as confirmation
             if (refundResult.refund?.id) {
               squareRefundId = refundResult.refund.id;
               squareRefundStatus = refundResult.refund.status?.toLowerCase() ?? "pending";
@@ -74,17 +75,20 @@ export async function POST(req: Request) {
             remaining = parseFloat((remaining - refundFromThis).toFixed(2));
           }
         }
+        // If no Square transactions found, squareRefundStatus stays null (cash/check — nothing to auto-refund)
       } catch (refundErr: any) {
         console.error("Square refund error:", refundErr?.message ?? refundErr);
         squareRefundStatus = "failed";
       }
 
-      // Record whether Square processed it so the Refund Report can show status
-      await admin
-        .from("session_balance_choices")
-        .update({ square_refund_id: squareRefundId, square_refund_status: squareRefundStatus })
-        .eq("camper_id", camper_id)
-        .eq("session_id", session_id);
+      // Only update if Square was involved — leaves the columns null for cash/check payers
+      if (squareRefundStatus !== null) {
+        await admin
+          .from("session_balance_choices")
+          .update({ square_refund_id: squareRefundId, square_refund_status: squareRefundStatus })
+          .eq("camper_id", camper_id)
+          .eq("session_id", session_id);
+      }
     }
 
     // Zero out the store balance — must use admin client, RLS only allows directors to update campers
