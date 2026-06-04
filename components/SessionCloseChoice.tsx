@@ -28,6 +28,7 @@ export default function SessionCloseChoice({ campers, sessionId, parentId }: Pro
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const updateDonate = (camperId: string, balance: number, value: string) => {
     const donate = parseFloat(value) || 0;
@@ -66,12 +67,13 @@ export default function SessionCloseChoice({ campers, sessionId, parentId }: Pro
   const handleSubmit = async () => {
     if (!validate()) return;
     setLoading(true);
-    await Promise.all(
-      campers.map(camper => {
+    setSubmitError(null);
+    const results = await Promise.all(
+      campers.map(async camper => {
         const donate = parseFloat(choices[camper.id]?.donate || "0");
         const refund = parseFloat(choices[camper.id]?.refund || "0");
         const choice = donate === 0 ? "refund" : refund === 0 ? "donate" : "split";
-        return fetch("/api/parent/session-choice", {
+        const res = await fetch("/api/parent/session-choice", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -84,10 +86,17 @@ export default function SessionCloseChoice({ campers, sessionId, parentId }: Pro
             refund_amount: refund,
           }),
         });
+        const data = await res.json();
+        return { ok: res.ok, error: data.error };
       })
     );
     setLoading(false);
-    setSubmitted(true);
+    const failed = results.filter(r => !r.ok);
+    if (failed.length > 0) {
+      setSubmitError(`Something went wrong: ${failed[0].error ?? "please try again"}`);
+    } else {
+      setSubmitted(true);
+    }
   };
 
   if (submitted) {
@@ -179,6 +188,11 @@ export default function SessionCloseChoice({ campers, sessionId, parentId }: Pro
         );
       })}
 
+      {submitError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+          ⚠️ {submitError}
+        </div>
+      )}
       <button
         onClick={handleSubmit}
         disabled={loading}

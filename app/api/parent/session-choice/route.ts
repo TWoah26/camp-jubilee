@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { SquareClient, SquareEnvironment } from "square";
 
@@ -81,8 +81,9 @@ export async function POST(req: Request) {
       }
     }
 
-    // Zero out the store balance since it's been allocated
-    await supabase.from("campers").update({ store_balance: 0 }).eq("id", camper_id);
+    // Zero out the store balance — must use admin client, RLS only allows directors to update campers
+    const admin = await createAdminClient();
+    await admin.from("campers").update({ store_balance: 0 }).eq("id", camper_id);
 
     return NextResponse.json({ success: true });
   } catch {
