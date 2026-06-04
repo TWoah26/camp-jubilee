@@ -23,14 +23,23 @@ export async function POST(req: Request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Zero out balances ≤ $25 — too small to refund, absorbed at close.
-    // Parents with these balances will see $0 and won't be shown the refund/donate page.
-    await admin
+    // Adjust all non-zero balances at close:
+    // - Balance ≤ $25 → $0   (absorbed, parent sees nothing)
+    // - Balance  > $25 → balance - $25   (parent sees/chooses the overage only)
+    const { data: sessionCampers } = await admin
       .from("campers")
-      .update({ store_balance: 0 })
+      .select("id, store_balance")
       .eq("session_id", session_id)
-      .lte("store_balance", SMALL_BALANCE_THRESHOLD)
       .gt("store_balance", 0);
+
+    if (sessionCampers && sessionCampers.length > 0) {
+      await Promise.all(sessionCampers.map(c => {
+        const newBalance = c.store_balance <= SMALL_BALANCE_THRESHOLD
+          ? 0
+          : parseFloat((c.store_balance - SMALL_BALANCE_THRESHOLD).toFixed(2));
+        return admin.from("campers").update({ store_balance: newBalance }).eq("id", c.id);
+      }));
+    }
 
     return NextResponse.json({ success: true });
   } catch {
