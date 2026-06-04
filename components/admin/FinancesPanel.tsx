@@ -159,10 +159,8 @@ export default function FinancesPanel({ storeTransactions, tuitionPayments, bala
     }
   };
 
-  const handleMarkRefund = async (camperId: string) => {
+  const handleMarkRefund = async (camperId: string, amount: number) => {
     const method = refundMethods[camperId] ?? suggestedRefundMethod(camperId);
-    const camper = campers.find((c: any) => c.id === camperId);
-    const amount = parseFloat(((camper?.store_balance ?? 0) - 25).toFixed(2));
     if (amount <= 0) return;
     setProcessingRefund(camperId);
     try {
@@ -436,100 +434,120 @@ export default function FinancesPanel({ storeTransactions, tuitionPayments, bala
         </div>
       )}
 
-      {/* Refund Report */}
-      {tab === "refunds" && (
-        <div className="bg-white rounded-2xl shadow">
-          {selectedSessionId === "all" ? (
-            <div className="p-8 text-center text-gray-400">
-              <p className="font-medium">Select a specific session to view the refund report.</p>
-            </div>
-          ) : refundableCampers.length === 0 ? (
-            <div className="p-8 text-center text-gray-400">
-              <p className="font-medium">No campers with balance over $25 in this session.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-sm">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Camper</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Balance</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Refund Amount</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Funded Via</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Parent's Choice</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {refundableCampers.map((c: any) => {
-                    const refundAmount = parseFloat((c.store_balance - 25).toFixed(2));
-                    const sources = getPaymentSources(c.id);
-                    const record = getRefundRecord(c.id);
-                    const currentMethod = refundMethods[c.id] ?? suggestedRefundMethod(c.id);
-                    const parentChoice = filteredChoices.find((ch: any) => ch.camper_id === c.id);
+      {/* Refund Report — driven by what parents actually chose */}
+      {tab === "refunds" && (() => {
+        // Only choices where the parent requested a refund (refund_amount > 0)
+        const refundChoices = filteredChoices.filter((c: any) => (c.refund_amount ?? 0) > 0);
+        const pendingCount = refundChoices.filter((c: any) => !getRefundRecord(c.camper_id)).length;
+        const doneCount = refundChoices.filter((c: any) => !!getRefundRecord(c.camper_id)).length;
 
-                    return (
-                      <tr key={c.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 font-medium">{c.first_name} {c.last_name}</td>
-                        <td className="px-4 py-3">{formatCurrency(c.store_balance)}</td>
-                        <td className="px-4 py-3 font-semibold text-jubilee-navy">{formatCurrency(refundAmount)}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-1">
-                            {sources.map(m => (
-                              <span key={m} className={`text-xs px-2 py-0.5 rounded-full font-medium ${m === "square" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>
-                                {METHOD_LABELS[m] ?? m}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          {parentChoice ? (
-                            parentChoice.choice === "donate" ? (
-                              <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">💚 Donate</span>
-                            ) : (
-                              <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">💸 Refund {formatCurrency(parentChoice.refund_amount)}</span>
-                            )
-                          ) : (
-                            <span className="text-xs bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">⏳ No response</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          {record ? (
-                            <div className="flex items-center gap-2">
-                              <span className="text-green-600 font-medium text-xs">✓ Processed</span>
-                              <span className="text-gray-400 text-xs">{REFUND_METHOD_LABELS[record.method] ?? record.method}</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <select
-                                value={currentMethod}
-                                onChange={e => setRefundMethods(m => ({ ...m, [c.id]: e.target.value }))}
-                                className="border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
-                              >
-                                <option value="card">💳 Card Refund</option>
-                                <option value="cash">💵 Cash</option>
-                                <option value="check">📄 Check</option>
-                                <option value="donated">💚 Donated</option>
-                              </select>
-                              <button
-                                onClick={() => handleMarkRefund(c.id)}
-                                disabled={processingRefund === c.id}
-                                className="bg-jubilee-navy text-white px-3 py-1 rounded-lg text-xs font-medium hover:bg-jubilee-gold disabled:opacity-50 transition-colors"
-                              >
-                                {processingRefund === c.id ? "..." : "Mark Done"}
-                              </button>
-                            </div>
-                          )}
-                        </td>
+        return (
+          <div className="space-y-3">
+            {selectedSessionId === "all" ? (
+              <div className="bg-white rounded-2xl shadow p-8 text-center text-gray-400">
+                <p className="font-medium">Select a specific session to view the refund report.</p>
+              </div>
+            ) : refundChoices.length === 0 ? (
+              <div className="bg-white rounded-2xl shadow p-8 text-center text-gray-400">
+                <div className="text-4xl mb-3">💸</div>
+                <p className="font-medium">No refunds requested yet.</p>
+                <p className="text-sm mt-1">Parents who request refunds on the session-close page will appear here.</p>
+              </div>
+            ) : (
+              <>
+                {/* Summary pills */}
+                <div className="flex gap-3">
+                  <div className="bg-white rounded-xl shadow px-4 py-3 flex-1 text-center">
+                    <p className="text-2xl font-bold text-jubilee-navy">{refundChoices.length}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Total Refunds</p>
+                  </div>
+                  <div className="bg-white rounded-xl shadow px-4 py-3 flex-1 text-center">
+                    <p className="text-2xl font-bold text-amber-500">{pendingCount}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Pending</p>
+                  </div>
+                  <div className="bg-white rounded-xl shadow px-4 py-3 flex-1 text-center">
+                    <p className="text-2xl font-bold text-green-600">{doneCount}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Processed</p>
+                  </div>
+                  <div className="bg-white rounded-xl shadow px-4 py-3 flex-1 text-center">
+                    <p className="text-2xl font-bold text-jubilee-navy">
+                      {formatCurrency(refundChoices.reduce((s: number, c: any) => s + (c.refund_amount ?? 0), 0))}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">Total Owed</p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow overflow-hidden">
+                  <table className="w-full min-w-[540px] text-sm">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="text-left px-4 py-3 font-medium text-gray-600">Camper</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-600">Parent</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-600">Refund</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-600">Paid Via</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+                    </thead>
+                    <tbody className="divide-y">
+                      {refundChoices.map((choice: any) => {
+                        const refundAmount = choice.refund_amount ?? 0;
+                        const sources = getPaymentSources(choice.camper_id);
+                        const record = getRefundRecord(choice.camper_id);
+                        const currentMethod = refundMethods[choice.camper_id] ?? suggestedRefundMethod(choice.camper_id);
+
+                        return (
+                          <tr key={choice.id} className={`hover:bg-gray-50 ${record ? "opacity-60" : ""}`}>
+                            <td className="px-4 py-3 font-medium">{choice.camper?.first_name} {choice.camper?.last_name}</td>
+                            <td className="px-4 py-3 text-gray-500">{choice.parent?.name ?? "—"}</td>
+                            <td className="px-4 py-3 font-semibold text-jubilee-navy">{formatCurrency(refundAmount)}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-wrap gap-1">
+                                {sources.map((m: string) => (
+                                  <span key={m} className={`text-xs px-2 py-0.5 rounded-full font-medium ${m === "square" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>
+                                    {METHOD_LABELS[m] ?? m}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              {record ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-green-600 font-medium text-xs">✓ Done</span>
+                                  <span className="text-gray-400 text-xs">{REFUND_METHOD_LABELS?.[record.method] ?? record.method}</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    value={currentMethod}
+                                    onChange={e => setRefundMethods(m => ({ ...m, [choice.camper_id]: e.target.value }))}
+                                    className="border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
+                                  >
+                                    <option value="card">💳 Card</option>
+                                    <option value="cash">💵 Cash</option>
+                                    <option value="check">📄 Check</option>
+                                    <option value="donated">💚 Donated</option>
+                                  </select>
+                                  <button
+                                    onClick={() => handleMarkRefund(choice.camper_id, refundAmount)}
+                                    disabled={processingRefund === choice.camper_id}
+                                    className="bg-jubilee-navy text-white px-3 py-1 rounded-lg text-xs font-medium hover:bg-jubilee-gold disabled:opacity-50 transition-colors whitespace-nowrap"
+                                  >
+                                    {processingRefund === choice.camper_id ? "..." : "Mark Done"}
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
