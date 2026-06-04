@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import AppShell from "@/components/AppShell";
 import MedicalRoster from "@/components/admin/MedicalRoster";
+
+export const dynamic = "force-dynamic";
 
 export default async function AdminMedicalPage() {
   const supabase = await createClient();
@@ -11,8 +13,12 @@ export default async function AdminMedicalPage() {
   const { data: profile } = await supabase.from("users").select("*").eq("id", user.id).single();
   if (!profile || !["director","administrator","nurse"].includes(profile.role)) redirect("/dashboard");
 
+  // Use admin client for all data reads — the nurse role is not in the campers RLS policy,
+  // so a regular client returns empty results for any non-director user.
+  const admin = await createAdminClient();
+
   const [{ data: campers }, { data: sessions }, { data: parentLinks }] = await Promise.all([
-    supabase
+    admin
       .from("campers")
       .select(`
         id, first_name, last_name, cabin, is_staff, session_id,
@@ -28,11 +34,11 @@ export default async function AdminMedicalPage() {
         medications(id, name, dose, frequency, instructions, time_of_day)
       `)
       .order("last_name"),
-    supabase
+    admin
       .from("sessions")
       .select("id, name")
       .order("start_date", { ascending: true }),
-    supabase
+    admin
       .from("parent_camper_links")
       .select("camper_id, parent:users(id, name, email)")
       .eq("approved", true),
