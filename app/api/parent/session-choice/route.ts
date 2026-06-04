@@ -29,10 +29,12 @@ export async function POST(req: Request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Auto-refund via Square if the parent chose a refund
+    // Auto-refund via Square if the parent chose a refund and funded via card
+    const admin = await createAdminClient();
     if (refund_amount > 0) {
+      let squareRefundId: string | null = null;
+      let squareRefundStatus: string = "failed";
       try {
-        // Get store credit transactions for this camper that have a Square order ID
         const { data: transactions } = await supabase
           .from("store_transactions")
           .select("id, amount, square_order_id")
@@ -48,15 +50,12 @@ export async function POST(req: Request) {
             if (remaining <= 0) break;
             if (!tx.square_order_id) continue;
 
-            // Look up the payment ID via the order — faster and reliable vs scanning all payments
             const orderResult = await squareClient.orders.get({ orderId: tx.square_order_id });
             const squarePaymentId = orderResult.order?.tenders?.[0]?.paymentId;
             if (!squarePaymentId) continue;
 
-            // Refund as much as possible from this transaction (up to what remains)
             const refundFromThis = Math.min(remaining, tx.amount);
-
-            await squareClient.refunds.refundPayment({
+            const refundResult = await squareClient.refunds.refundPayment({
               idempotencyKey: `refund-${camper_id}-${session_id}-${tx.id}`,
               paymentId: squarePaymentId,
               amountMoney: {
@@ -66,17 +65,29 @@ export async function POST(req: Request) {
               reason: "Session end balance refund",
             });
 
+            // Capture the first refund ID as confirmation
+            if (refundResult.refund?.id) {
+              squareRefundId = refundResult.refund.id;
+              squareRefundStatus = refundResult.refund.status?.toLowerCase() ?? "pending";
+            }
+
             remaining = parseFloat((remaining - refundFromThis).toFixed(2));
           }
         }
       } catch (refundErr: any) {
         console.error("Square refund error:", refundErr?.message ?? refundErr);
-        // Don't block the response — choice is still recorded, director can refund manually if needed
+        squareRefundStatus = "failed";
       }
+
+      // Record whether Square processed it so the Refund Report can show status
+      await admin
+        .from("session_balance_choices")
+        .update({ square_refund_id: squareRefundId, square_refund_status: squareRefundStatus })
+        .eq("camper_id", camper_id)
+        .eq("session_id", session_id);
     }
 
     // Zero out the store balance — must use admin client, RLS only allows directors to update campers
-    const admin = await createAdminClient();
     await admin.from("campers").update({ store_balance: 0 }).eq("id", camper_id);
 
     return NextResponse.json({ success: true });

@@ -494,9 +494,11 @@ export default function FinancesPanel({ storeTransactions, tuitionPayments, bala
                         const sources = getPaymentSources(choice.camper_id);
                         const record = getRefundRecord(choice.camper_id);
                         const currentMethod = refundMethods[choice.camper_id] ?? suggestedRefundMethod(choice.camper_id);
+                        const autoRefunded = choice.square_refund_status === "completed" || choice.square_refund_status === "pending";
+                        const autoFailed = choice.square_refund_id && !autoRefunded;
 
                         return (
-                          <tr key={choice.id} className={`hover:bg-gray-50 ${record ? "opacity-60" : ""}`}>
+                          <tr key={choice.id} className={`hover:bg-gray-50 ${(record || autoRefunded) ? "opacity-60" : ""}`}>
                             <td className="px-4 py-3 font-medium">{choice.camper?.first_name} {choice.camper?.last_name}</td>
                             <td className="px-4 py-3 text-gray-500">{choice.parent?.name ?? "—"}</td>
                             <td className="px-4 py-3 font-semibold text-jubilee-navy">{formatCurrency(refundAmount)}</td>
@@ -515,25 +517,34 @@ export default function FinancesPanel({ storeTransactions, tuitionPayments, bala
                                   <span className="text-green-600 font-medium text-xs">✓ Done</span>
                                   <span className="text-gray-400 text-xs">{REFUND_METHOD_LABELS?.[record.method] ?? record.method}</span>
                                 </div>
-                              ) : (
+                              ) : autoRefunded ? (
                                 <div className="flex items-center gap-2">
-                                  <select
-                                    value={currentMethod}
-                                    onChange={e => setRefundMethods(m => ({ ...m, [choice.camper_id]: e.target.value }))}
-                                    className="border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
-                                  >
-                                    <option value="card">💳 Card</option>
-                                    <option value="cash">💵 Cash</option>
-                                    <option value="check">📄 Check</option>
-                                    <option value="donated">💚 Donated</option>
-                                  </select>
-                                  <button
-                                    onClick={() => handleMarkRefund(choice.camper_id, refundAmount)}
-                                    disabled={processingRefund === choice.camper_id}
-                                    className="bg-jubilee-navy text-white px-3 py-1 rounded-lg text-xs font-medium hover:bg-jubilee-gold disabled:opacity-50 transition-colors whitespace-nowrap"
-                                  >
-                                    {processingRefund === choice.camper_id ? "..." : "Mark Done"}
-                                  </button>
+                                  <span className="text-blue-600 font-medium text-xs">✓ Auto-refunded via Square</span>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col gap-1.5">
+                                  {autoFailed && (
+                                    <span className="text-xs text-amber-600 font-medium">⚠ Square auto-refund failed — process manually</span>
+                                  )}
+                                  <div className="flex items-center gap-2">
+                                    <select
+                                      value={currentMethod}
+                                      onChange={e => setRefundMethods(m => ({ ...m, [choice.camper_id]: e.target.value }))}
+                                      className="border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-jubilee-gold"
+                                    >
+                                      <option value="card">💳 Card</option>
+                                      <option value="cash">💵 Cash</option>
+                                      <option value="check">📄 Check</option>
+                                      <option value="donated">💚 Donated</option>
+                                    </select>
+                                    <button
+                                      onClick={() => handleMarkRefund(choice.camper_id, refundAmount)}
+                                      disabled={processingRefund === choice.camper_id}
+                                      className="bg-jubilee-navy text-white px-3 py-1 rounded-lg text-xs font-medium hover:bg-jubilee-gold disabled:opacity-50 transition-colors whitespace-nowrap"
+                                    >
+                                      {processingRefund === choice.camper_id ? "..." : "Mark Done"}
+                                    </button>
+                                  </div>
                                 </div>
                               )}
                             </td>
