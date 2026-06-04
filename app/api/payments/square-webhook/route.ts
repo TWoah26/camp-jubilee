@@ -34,12 +34,16 @@ export async function POST(req: Request) {
 
     const event = JSON.parse(rawBody);
 
-    // We only care about completed payments
-    if (event.type !== "payment.completed") {
+    // We only care about payment.updated where status is COMPLETED
+    if (event.type !== "payment.updated") {
       return NextResponse.json({ ok: true, skipped: event.type });
     }
 
     const payment = event.data?.object?.payment;
+    if (payment?.status !== "COMPLETED") {
+      return NextResponse.json({ ok: true, skipped: `status:${payment?.status}` });
+    }
+
     const orderId = payment?.orderId;
 
     if (!orderId) {
