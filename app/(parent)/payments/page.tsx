@@ -109,8 +109,8 @@ export default async function PaymentsPage() {
           </div>
         )}
 
-        {/* Store Account Funding — campers + staff together */}
-        {allLinked.length > 0 && (
+        {/* Store Account Funding — hidden after session closes to prevent post-close top-ups */}
+        {allLinked.length > 0 && (sessions ?? []).length > 0 && (
           <div className="bg-white rounded-2xl shadow p-5">
             <h2 className="font-semibold text-jubilee-navy mb-4">Store Accounts</h2>
             <AddFundsMultiForm campers={allLinked} parentId={user.id} />

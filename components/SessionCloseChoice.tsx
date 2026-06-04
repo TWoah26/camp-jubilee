@@ -117,6 +117,9 @@ export default function SessionCloseChoice({ campers, sessionId, parentId }: Pro
             );
           })}
         </div>
+        <a href="/dashboard" className="mt-5 inline-block bg-jubilee-navy text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-jubilee-gold transition-colors">
+          Back to Dashboard →
+        </a>
       </div>
     );
   }

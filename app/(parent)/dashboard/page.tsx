@@ -42,7 +42,7 @@ export default async function DashboardPage() {
     .from("sessions")
     .select("id, name")
     .eq("session_closed", true)
-    .order("created_at", { ascending: false })
+    .order("end_date", { ascending: false })
     .limit(1)
     .single();
 
