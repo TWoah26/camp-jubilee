@@ -39,7 +39,8 @@ export async function POST(req: Request) {
       };
     });
 
-    // Encode allocations as camperID:amount pairs in the redirect URL
+    // Encode allocations as camperID:amount pairs — used in both redirect URL and order metadata
+    // so the webhook can process the payment server-side if the browser redirect doesn't complete
     const allocationParam = allocations
       .map((a: any) => `${a.camper_id}:${a.amount}`)
       .join(",");
@@ -51,6 +52,13 @@ export async function POST(req: Request) {
       order: {
         locationId: process.env.SQUARE_LOCATION_ID!,
         lineItems,
+        // Store allocation info in metadata so the webhook handler can apply
+        // credits even if the browser redirect never completes
+        metadata: {
+          type: "store_credit_multi",
+          parent_id: String(parent_id),
+          allocations: allocationParam,
+        },
       },
       checkoutOptions: {
         redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/square-callback?parent_id=${parent_id}&type=store_credit_multi&allocations=${encodeURIComponent(allocationParam)}`,

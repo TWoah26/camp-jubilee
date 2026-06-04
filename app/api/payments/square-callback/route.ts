@@ -13,7 +13,6 @@ export async function GET(req: Request) {
     const supabase = await createAdminClient();
 
     if (type === "store_credit_multi") {
-      // Multi-camper store credit
       const allocationsParam = searchParams.get("allocations") ?? "";
       const allocations = allocationsParam.split(",").map(pair => {
         const [camper_id, amountStr] = pair.split(":");
@@ -24,10 +23,23 @@ export async function GET(req: Request) {
         return NextResponse.redirect(new URL("/payments?error=invalid_callback", BASE_URL));
       }
 
+      // Idempotency check — if the webhook already processed this order, skip to success
+      if (orderId) {
+        const { data: existing } = await supabase
+          .from("store_transactions")
+          .select("id")
+          .eq("square_order_id", orderId)
+          .limit(1);
+        if (existing && existing.length > 0) {
+          return NextResponse.redirect(new URL("/payments?success=1", BASE_URL));
+        }
+      }
+
+      const updateErrors: string[] = [];
       await Promise.all(allocations.map(async ({ camper_id, amount }) => {
         const { data: camper } = await supabase.from("campers").select("store_balance").eq("id", camper_id).single();
         const newBalance = parseFloat(((camper?.store_balance ?? 0) + amount).toFixed(2));
-        await Promise.all([
+        const [txResult, balResult] = await Promise.all([
           supabase.from("store_transactions").insert({
             camper_id,
             amount,
@@ -39,7 +51,14 @@ export async function GET(req: Request) {
           }),
           supabase.from("campers").update({ store_balance: newBalance }).eq("id", camper_id),
         ]);
+        if (txResult.error) updateErrors.push(`tx:${camper_id}: ${txResult.error.message}`);
+        if (balResult.error) updateErrors.push(`bal:${camper_id}: ${balResult.error.message}`);
       }));
+
+      if (updateErrors.length > 0) {
+        console.error("Square callback store_credit_multi errors:", updateErrors);
+        return NextResponse.redirect(new URL("/payments?error=callback_failed", BASE_URL));
+      }
 
     } else if (type === "tuition_multi") {
       const allocationsParam = searchParams.get("allocations") ?? "";
@@ -70,6 +89,19 @@ export async function GET(req: Request) {
       if (!camperId || !amount) {
         return NextResponse.redirect(new URL("/payments?error=invalid_callback", BASE_URL));
       }
+
+      // Idempotency check
+      if (orderId) {
+        const { data: existing } = await supabase
+          .from("store_transactions")
+          .select("id")
+          .eq("square_order_id", orderId)
+          .limit(1);
+        if (existing && existing.length > 0) {
+          return NextResponse.redirect(new URL("/payments?success=1", BASE_URL));
+        }
+      }
+
       const { data: camper } = await supabase.from("campers").select("store_balance").eq("id", camperId).single();
       const newBalance = parseFloat(((camper?.store_balance ?? 0) + amount).toFixed(2));
       await Promise.all([
