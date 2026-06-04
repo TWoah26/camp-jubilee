@@ -97,8 +97,11 @@ export default function FinancesPanel({ storeTransactions, tuitionPayments, bala
     return "cash"; // mixed — default to cash
   };
 
-  const handleClose = async () => {
-    const sessionToClose = selectedSession ?? sessions.find(s => s.is_active && !s.session_closed);
+  const handleClose = async (explicitSessionId?: string) => {
+    // Accept explicit session ID to avoid reading stale React state from a closure
+    const sessionToClose = explicitSessionId
+      ? sessions.find(s => s.id === explicitSessionId)
+      : selectedSession ?? sessions.find(s => s.is_active && !s.session_closed);
     if (!sessionToClose) return alert("Select or activate a session to close.");
     if (!confirm(`Close "${sessionToClose.name}"? This will prompt parents to choose refund or donate.`)) return;
     setClosing(true);
@@ -223,7 +226,7 @@ export default function FinancesPanel({ storeTransactions, tuitionPayments, bala
             {activeCloseable.map(s => (
               <button
                 key={s.id}
-                onClick={() => { setSelectedSessionId(s.id); handleClose(); }}
+                onClick={() => { setSelectedSessionId(s.id); handleClose(s.id); }}
                 disabled={closing}
                 className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
               >

@@ -10,7 +10,7 @@ export default async function SessionClosePage() {
   const { data: profile } = await supabase.from("users").select("*").eq("id", user.id).single();
   if (!profile) redirect("/login");
 
-  const { data: session } = await supabase.from("sessions").select("*").eq("session_closed", true).order("created_at", { ascending: false }).limit(1).single();
+  const { data: session } = await supabase.from("sessions").select("*").eq("session_closed", true).order("end_date", { ascending: false }).limit(1).single();
   if (!session) redirect("/dashboard");
 
   const { data: links } = await supabase
