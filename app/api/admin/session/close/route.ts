@@ -15,15 +15,8 @@ export async function POST(req: Request) {
     const { session_id } = await req.json();
     const admin = await createAdminClient();
 
-    // Mark session closed
-    const { error } = await admin.from("sessions").update({
-      session_closed: true,
-      is_active: false,
-    }).eq("id", session_id);
-
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-    // Adjust all non-zero balances at close:
+    // Adjust balances FIRST (before marking closed) to eliminate the race
+    // condition where a parent loads the session-close page between the two steps.
     // - Balance ≤ $25 → $0   (absorbed, parent sees nothing)
     // - Balance  > $25 → balance - $25   (parent sees/chooses the overage only)
     const { data: sessionCampers } = await admin
@@ -40,6 +33,15 @@ export async function POST(req: Request) {
         return admin.from("campers").update({ store_balance: newBalance }).eq("id", c.id);
       }));
     }
+
+    // Mark session closed only after balances are set — prevents parents from
+    // seeing the session-close page with pre-deduction balances.
+    const { error } = await admin.from("sessions").update({
+      session_closed: true,
+      is_active: false,
+    }).eq("id", session_id);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     return NextResponse.json({ success: true });
   } catch {

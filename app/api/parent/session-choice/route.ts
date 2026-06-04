@@ -46,17 +46,11 @@ export async function POST(req: Request) {
 
           for (const tx of transactions) {
             if (remaining <= 0) break;
+            if (!tx.square_order_id) continue;
 
-            // Look up the Square payment ID for this order
-            const paymentsResult = await squareClient.payments.list({} as any);
-            let squarePaymentId: string | undefined;
-            for await (const payment of paymentsResult) {
-              if ((payment as any).orderId === tx.square_order_id) {
-                squarePaymentId = payment.id;
-                break;
-              }
-            }
-
+            // Look up the payment ID via the order — faster and reliable vs scanning all payments
+            const orderResult = await squareClient.orders.get({ orderId: tx.square_order_id });
+            const squarePaymentId = orderResult.order?.tenders?.[0]?.paymentId;
             if (!squarePaymentId) continue;
 
             // Refund as much as possible from this transaction (up to what remains)

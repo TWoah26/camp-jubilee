@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -17,7 +17,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const { data, error } = await supabase
+    const admin = await createAdminClient();
+    const { data, error } = await admin
       .from("refund_records")
       .upsert(
         { camper_id, session_id, amount, method, notes: notes ?? null, processed_by: user.id },
