@@ -23,7 +23,7 @@ export async function GET(req: Request) {
         return NextResponse.redirect(new URL("/payments?error=invalid_callback", BASE_URL));
       }
 
-      // Idempotency check — if the webhook already processed this order, skip to success
+      // Idempotency check — skip if webhook already processed this order
       if (orderId) {
         const { data: existing } = await supabase
           .from("store_transactions")
@@ -37,22 +37,25 @@ export async function GET(req: Request) {
 
       const updateErrors: string[] = [];
       await Promise.all(allocations.map(async ({ camper_id, amount }) => {
-        const { data: camper } = await supabase.from("campers").select("store_balance").eq("id", camper_id).single();
-        const newBalance = parseFloat(((camper?.store_balance ?? 0) + amount).toFixed(2));
-        const [txResult, balResult] = await Promise.all([
-          supabase.from("store_transactions").insert({
-            camper_id,
-            amount,
-            type: "credit",
-            note: "Parent top-up",
-            payment_method: "square",
-            staff_id: parentId,
-            square_order_id: orderId ?? null,
-          }),
-          supabase.from("campers").update({ store_balance: newBalance }).eq("id", camper_id),
-        ]);
-        if (txResult.error) updateErrors.push(`tx:${camper_id}: ${txResult.error.message}`);
-        if (balResult.error) updateErrors.push(`bal:${camper_id}: ${balResult.error.message}`);
+        const { error: txError } = await supabase.from("store_transactions").insert({
+          camper_id,
+          amount,
+          type: "credit",
+          note: "Parent top-up",
+          payment_method: "square",
+          staff_id: parentId,
+          square_order_id: orderId ?? null,
+        });
+        if (txError) {
+          updateErrors.push(`tx:${camper_id}: ${txError.message}`);
+          return;
+        }
+        // Atomic balance increment via Postgres function
+        const { error: balError } = await supabase.rpc("add_store_balance", {
+          p_camper_id: camper_id,
+          p_amount: amount,
+        });
+        if (balError) updateErrors.push(`bal:${camper_id}: ${balError.message}`);
       }));
 
       if (updateErrors.length > 0) {
@@ -71,8 +74,23 @@ export async function GET(req: Request) {
         return NextResponse.redirect(new URL("/payments?error=invalid_callback", BASE_URL));
       }
 
-      await Promise.all(allocations.map(({ camper_id, amount, session_id }) =>
-        supabase.from("tuition_payments").insert({
+      // Idempotency check — skip if already processed (keyed by square_payment_id + camper)
+      if (orderId) {
+        const camperIds = allocations.map(a => a.camper_id);
+        const { data: existing } = await supabase
+          .from("tuition_payments")
+          .select("id")
+          .eq("square_payment_id", orderId)
+          .in("camper_id", camperIds)
+          .limit(1);
+        if (existing && existing.length > 0) {
+          return NextResponse.redirect(new URL("/payments?success=1", BASE_URL));
+        }
+      }
+
+      const tuitionErrors: string[] = [];
+      await Promise.all(allocations.map(async ({ camper_id, amount, session_id }) => {
+        const { error } = await supabase.from("tuition_payments").insert({
           camper_id,
           parent_id: parentId,
           amount,
@@ -80,8 +98,14 @@ export async function GET(req: Request) {
           payment_method: "square",
           square_payment_id: orderId ?? null,
           session_id,
-        })
-      ));
+        });
+        if (error) tuitionErrors.push(`${camper_id}: ${error.message}`);
+      }));
+
+      if (tuitionErrors.length > 0) {
+        console.error("Square callback tuition_multi errors:", tuitionErrors);
+        return NextResponse.redirect(new URL("/payments?error=callback_failed", BASE_URL));
+      }
 
     } else if (type === "store_credit") {
       const camperId = searchParams.get("camper_id");
@@ -102,30 +126,37 @@ export async function GET(req: Request) {
         }
       }
 
-      const { data: camper } = await supabase.from("campers").select("store_balance").eq("id", camperId).single();
-      const newBalance = parseFloat(((camper?.store_balance ?? 0) + amount).toFixed(2));
-      await Promise.all([
-        supabase.from("store_transactions").insert({
-          camper_id: camperId,
-          amount,
-          type: "credit",
-          note: "Parent top-up",
-          payment_method: "square",
-          staff_id: parentId,
-          square_order_id: orderId ?? null,
-        }),
-        supabase.from("campers").update({ store_balance: newBalance }).eq("id", camperId),
-      ]);
+      const { error: txError } = await supabase.from("store_transactions").insert({
+        camper_id: camperId,
+        amount,
+        type: "credit",
+        note: "Parent top-up",
+        payment_method: "square",
+        staff_id: parentId,
+        square_order_id: orderId ?? null,
+      });
+      if (txError) {
+        console.error("Square callback store_credit tx error:", txError.message);
+        return NextResponse.redirect(new URL("/payments?error=callback_failed", BASE_URL));
+      }
+      const { error: balError } = await supabase.rpc("add_store_balance", {
+        p_camper_id: camperId,
+        p_amount: amount,
+      });
+      if (balError) {
+        console.error("Square callback store_credit balance error:", balError.message);
+        return NextResponse.redirect(new URL("/payments?error=callback_failed", BASE_URL));
+      }
 
     } else {
-      // Tuition / registration fee payment
+      // Tuition / registration fee payment (single)
       const camperId = searchParams.get("camper_id");
       const amount = parseFloat(searchParams.get("amount") ?? "0");
       const sessionId = searchParams.get("session_id") ?? null;
       if (!camperId || !parentId || !type || !amount) {
         return NextResponse.redirect(new URL("/payments?error=invalid_callback", BASE_URL));
       }
-      await supabase.from("tuition_payments").insert({
+      const { error } = await supabase.from("tuition_payments").insert({
         camper_id: camperId,
         parent_id: parentId,
         amount,
@@ -134,6 +165,10 @@ export async function GET(req: Request) {
         square_payment_id: orderId,
         session_id: sessionId,
       });
+      if (error) {
+        console.error("Square callback tuition error:", error.message);
+        return NextResponse.redirect(new URL("/payments?error=callback_failed", BASE_URL));
+      }
     }
 
     return NextResponse.redirect(new URL("/payments?success=1", BASE_URL));

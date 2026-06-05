@@ -14,7 +14,14 @@ const squareClient = new SquareClient({
 // Square signs with: HMAC-SHA256(notificationUrl + rawBody, signatureKey) → base64
 function verifySquareSignature(rawBody: string, signature: string, notificationUrl: string): boolean {
   const key = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY ?? "";
-  if (!key) return true; // skip verification if key not configured (dev mode)
+  if (!key) {
+    if (process.env.NODE_ENV === "production") {
+      console.error("SQUARE_WEBHOOK_SIGNATURE_KEY is not set in production — rejecting all webhook requests");
+      return false;
+    }
+    // Allow in dev/preview without the key
+    return true;
+  }
   const hmac = createHmac("sha256", key);
   hmac.update(notificationUrl + rawBody);
   const expected = hmac.digest("base64");
@@ -84,23 +91,26 @@ export async function POST(req: Request) {
 
       const errors: string[] = [];
       await Promise.all(allocations.map(async ({ camper_id, amount }: { camper_id: string; amount: number }) => {
-        const { data: camper } = await admin.from("campers").select("store_balance").eq("id", camper_id).single();
-        const newBalance = parseFloat(((camper?.store_balance ?? 0) + amount).toFixed(2));
-
-        const [txResult, balResult] = await Promise.all([
-          admin.from("store_transactions").insert({
-            camper_id,
-            amount,
-            type: "credit",
-            note: "Parent top-up",
-            payment_method: "square",
-            staff_id: parentId,
-            square_order_id: orderId,
-          }),
-          admin.from("campers").update({ store_balance: newBalance }).eq("id", camper_id),
-        ]);
-        if (txResult.error) errors.push(`tx:${camper_id}: ${txResult.error.message}`);
-        if (balResult.error) errors.push(`bal:${camper_id}: ${balResult.error.message}`);
+        // Insert transaction record first (this is what the idempotency check looks for)
+        const { error: txError } = await admin.from("store_transactions").insert({
+          camper_id,
+          amount,
+          type: "credit",
+          note: "Parent top-up",
+          payment_method: "square",
+          staff_id: parentId,
+          square_order_id: orderId,
+        });
+        if (txError) {
+          errors.push(`tx:${camper_id}: ${txError.message}`);
+          return;
+        }
+        // Atomic balance increment via Postgres function — avoids read-modify-write race
+        const { error: balError } = await admin.rpc("add_store_balance", {
+          p_camper_id: camper_id,
+          p_amount: amount,
+        });
+        if (balError) errors.push(`bal:${camper_id}: ${balError.message}`);
       }));
 
       if (errors.length > 0) {
